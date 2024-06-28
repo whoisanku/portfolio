@@ -14,7 +14,10 @@ const Profile: React.FC = () => {
   ];
 
   const findActiveTabIndex = (path: string): number => {
-    return routes.findIndex((route) => route.path === path);
+    if (path === "/") return 0;
+    if (path.startsWith("/blog")) return 1;
+    if (path === "/post") return 2;
+    return -1;
   };
 
   useEffect(() => {
@@ -38,6 +41,11 @@ const Profile: React.FC = () => {
   const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
     console.log("Image clicked");
+  };
+
+  const isActive = (path: string): boolean => {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname.startsWith(path);
   };
 
   return (
@@ -72,7 +80,7 @@ const Profile: React.FC = () => {
               d="M 50,50 m -47,0 a 40,15 0 1,1 96,0 a 41,14.5 0 1,1 -96,0"
               fill="none"
               className={
-                location.pathname === route.path
+                isActive(route.path)
                   ? "stroke-blue-500 filter drop-shadow-lg"
                   : "orbit"
               }
