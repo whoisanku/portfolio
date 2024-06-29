@@ -64,10 +64,18 @@ const Profile: React.FC = () => {
           {`
             .orbit { stroke: gray; stroke-width: 0.4; }
             .clickable-area { fill: transparent; cursor: pointer; }
+            @keyframes revolve {
+              from { offset-distance: 0%; }
+              to { offset-distance: 100%; }
+            }
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
           `}
         </style>
         {routes.map((route, index) => (
-          <g key={index} transform={`rotate(${30 - 60 * index} 50 50)`}>
+          <g key={index} transform={`rotate(${30 - 120 * index} 50 50)`}>
             <Link to={route.path}>
               <path
                 d="M 50,50 m -48,0 a 47,15 0 0,1 96,0 a 40,15 0 1,1 -96,0"
@@ -81,24 +89,26 @@ const Profile: React.FC = () => {
               fill="none"
               className={
                 isActive(route.path)
-                  ? "stroke-blue-500 filter drop-shadow-lg"
+                  ? "stroke-blue-500 stroke-[0.5] filter drop-shadow-lg"
                   : "orbit"
               }
               pointerEvents="none"
             />
             <Link to={route.path}>
-              <g pointerEvents="none">
-                <animateMotion
-                  dur="10s"
-                  repeatCount="indefinite"
-                  begin={`${-3.3 * index}s`}
-                >
-                  <mpath href={`#orbit${index}`} />
-                </animateMotion>
-                <g transform="translate(-4, -4)">
+              <g
+                style={{
+                  offsetPath: `path('M 50,50 m -47,0 a 40,15 0 1,1 96,0 a 41,14.5 0 1,1 -96,0')`,
+                  animation: `revolve 15s linear infinite`,
+                  animationDelay: `${-10 * index}s`,
+                  transformOrigin: "center",
+                  transformBox: "fill-box",
+                }}
+              >
+                <g style={{ animation: "spin 10s linear infinite" }}>
                   {React.createElement(route.icon, {
                     size: 8,
                     className: getIconClass(index),
+                    style: { transform: "translateY(-5px)" },
                   })}
                 </g>
               </g>
