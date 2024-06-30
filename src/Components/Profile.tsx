@@ -8,9 +8,9 @@ const Profile: React.FC = () => {
   const [activeTab, setActiveTab] = useState<number>(0);
 
   const routes = [
-    { path: "/", icon: Home },
-    { path: "/blog", icon: BookOpen },
-    { path: "/post", icon: PenTool },
+    { path: "/", icon: Home, symbolId: "home-icon" },
+    { path: "/blog", icon: BookOpen, symbolId: "blog-icon" },
+    { path: "/post", icon: PenTool, symbolId: "post-icon" },
   ];
 
   const findActiveTabIndex = (path: string): number => {
@@ -59,6 +59,15 @@ const Profile: React.FC = () => {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          {routes.map((route) => (
+            <symbol
+              id={route.symbolId}
+              viewBox="0 0 24 24"
+              key={route.symbolId}
+            >
+              {React.createElement(route.icon, { size: 24 })}
+            </symbol>
+          ))}
         </defs>
         <style>
           {`
@@ -71,6 +80,9 @@ const Profile: React.FC = () => {
             @keyframes spin {
               from { transform: rotate(0deg); }
               to { transform: rotate(360deg); }
+            }
+            .icon-wrapper {
+              animation: spin 10s linear infinite;
             }
           `}
         </style>
@@ -100,16 +112,17 @@ const Profile: React.FC = () => {
                   offsetPath: `path('M 50,50 m -47,0 a 40,15 0 1,1 96,0 a 41,14.5 0 1,1 -96,0')`,
                   animation: `revolve 15s linear infinite`,
                   animationDelay: `${-10 * index}s`,
-                  transformOrigin: "center",
-                  transformBox: "fill-box",
                 }}
               >
-                <g style={{ animation: "spin 10s linear infinite" }}>
-                  {React.createElement(route.icon, {
-                    size: 8,
-                    className: getIconClass(index),
-                    style: { transform: "translateY(-5px)" },
-                  })}
+                <g className="icon-wrapper">
+                  <use
+                    href={`#${route.symbolId}`}
+                    width="8"
+                    height="8"
+                    x="-4"
+                    y="-4"
+                    className={getIconClass(index)}
+                  />
                 </g>
               </g>
             </Link>
