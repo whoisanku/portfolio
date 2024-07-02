@@ -49,7 +49,7 @@ const Profile: React.FC = () => {
   };
 
   return (
-    <div className="relative w-80 h-80">
+    <div className="relative w-80">
       <svg viewBox="-10 -10 120 120" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
