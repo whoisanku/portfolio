@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import MoonLoader from "./MoonLoader";
 
 interface PostExtraData {
   BlogDeltaRtfFormat: string;
@@ -20,6 +21,32 @@ interface Post {
 interface ApiResponse {
   Posts: Post[];
 }
+
+const BlogPostCard: React.FC<{ post: Post }> = ({ post }) => {
+  return (
+    <article className="bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+      <div className="text-gray-400 text-sm mb-2">
+        Posted on:{" "}
+        {new Date(post.TimestampNanos / 1000000).toLocaleDateString()}
+      </div>
+      <h2 className="text-xl font-semibold mb-2 text-white">{post.title}</h2>
+      {post.ImageURLs && (
+        <img
+          src={post.ImageURLs}
+          alt={post.title}
+          className="w-full h-auto rounded-lg mb-4"
+        />
+      )}
+      <p className="text-white mb-4">{post.content?.slice(0, 150)}...</p>
+      <Link
+        to={`/blog/${post.PostHashHex}`}
+        className="inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
+        Read More
+      </Link>
+    </article>
+  );
+};
 
 const Blog: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -91,36 +118,28 @@ const Blog: React.FC = () => {
     fetchPosts();
   }, []);
 
-  if (loading) return <div className="text-white">Loading...</div>;
-  if (error) return <div className="text-white">Error: {error}</div>;
+  if (loading)
+    return (
+      <div className="text-white text-center">
+        <MoonLoader size={40} />
+      </div>
+    );
+  if (error)
+    return <div className="text-white text-center">Error: {error}</div>;
 
   return (
-    <div className="text-white">
-      <h1 className="text-2xl font-bold mb-4">Blogs</h1>
-      {posts.length > 0 ? (
-        posts.map((post) => (
-          <div
-            key={post.PostHashHex}
-            className="mb-4 p-4 border border-gray-700 rounded"
-          >
-            <h2 className="text-xl font-semibold mb-2">{post.title}</h2>
-            <p className="text-sm text-gray-400">
-              Posted on:{" "}
-              {new Date(post.TimestampNanos / 1000000).toLocaleDateString()}
-            </p>
-            <img src={post.ImageURLs}></img>
-            <p className="mt-2">{post.content?.slice(0, 150)}...</p>
-            <Link
-              to={`/blog/${post.PostHashHex}`}
-              className="mt-2 inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Read More
-            </Link>
-          </div>
-        ))
-      ) : (
-        <p>No blog posts found.</p>
-      )}
+    <div>
+      <div className="py-1">
+        <div className="max-w-2xl mx-auto px-4">
+          {posts.length > 0 ? (
+            posts.map((post) => (
+              <BlogPostCard key={post.PostHashHex} post={post} />
+            ))
+          ) : (
+            <p className="text-white text-center">No blog posts found.</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

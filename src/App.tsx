@@ -24,7 +24,17 @@ const App: React.FC = () => {
             <div className="w-full max-w-4xl px-4">
               <Routes>
                 <Route path="/" element={<Home />} />
-                <Route path="/blog" element={<Blog />} />
+                <Route
+                  path="/blog"
+                  element={
+                    <div>
+                      <div className="text-white text-2xl flex justify-center mb-6">
+                        Blogs
+                      </div>
+                      <Blog />
+                    </div>
+                  }
+                />
                 <Route path="/blog/:postHashHex" element={<BlogPost />} />
                 <Route path="/post" element={<UsePublications />} />
               </Routes>
