@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, BookOpen, PenTool } from "lucide-react";
+import { Home, BookOpen, Pencil } from "lucide-react";
 import profileImage from "../assets/profile.png";
 
 const Profile: React.FC = () => {
@@ -10,7 +10,7 @@ const Profile: React.FC = () => {
   const routes = [
     { path: "/", icon: Home, symbolId: "home-icon" },
     { path: "/blog", icon: BookOpen, symbolId: "blog-icon" },
-    { path: "/post", icon: PenTool, symbolId: "post-icon" },
+    { path: "/post", icon: Pencil, symbolId: "post-icon" },
   ];
 
   const findActiveTabIndex = (path: string): number => {
