@@ -9,6 +9,7 @@ import AnimatedSign from "./Components/AnimatedSign";
 import { FaXTwitter } from "react-icons/fa6";
 import { FaInstagram } from "react-icons/fa";
 import { Providers } from "./Providers";
+import { UsePublications } from "./Pages/Post";
 
 const App: React.FC = () => {
   return (
@@ -20,15 +21,12 @@ const App: React.FC = () => {
           </div>
           <div className="relative z-10 flex flex-col items-center">
             <Profile />
-            <div className="w-full max-w-4xl px-4 mt-8">
+            <div className="w-full max-w-4xl px-4">
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:postHashHex" element={<BlogPost />} />
-                <Route
-                  path="/post"
-                  element={<p className="text-white text-2xl">Post</p>}
-                />
+                <Route path="/post" element={<UsePublications />} />
               </Routes>
             </div>
 

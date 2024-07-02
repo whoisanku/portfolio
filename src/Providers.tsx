@@ -1,8 +1,4 @@
-import {
-  LensConfig,
-  LensProvider,
-  development,
-} from "@lens-protocol/react-web";
+import { LensConfig, LensProvider, production } from "@lens-protocol/react-web";
 import { bindings } from "@lens-protocol/wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig, http } from "wagmi";
@@ -19,7 +15,7 @@ const wagmiConfig = createConfig({
 });
 
 const lensConfig: LensConfig = {
-  environment: development,
+  environment: production,
   bindings: bindings(wagmiConfig),
   debug:
     typeof window !== "undefined" && window.location.search.includes("debug"), // Check for window
