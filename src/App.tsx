@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import BackgroundComets from "./Components/BackgroundComets";
 import Profile from "./Components/Profile";
@@ -11,7 +11,24 @@ import { FaInstagram } from "react-icons/fa";
 import { Providers } from "./Providers";
 import { UsePublications } from "./Pages/Post";
 
+interface PostExtraData {
+  BlogDeltaRtfFormat: string;
+  BlogTitleSlug: string;
+  Title: string;
+}
+
+interface Post {
+  PostHashHex: string;
+  ImageURLs: string;
+  Body: string;
+  TimestampNanos: number;
+  PostExtraData?: PostExtraData;
+  title?: string;
+  content?: string;
+}
+
 const App: React.FC = () => {
+  const [posts, setPosts] = useState<Post[]>([]);
   return (
     <Providers>
       <Router>
@@ -31,12 +48,25 @@ const App: React.FC = () => {
                       <div className="text-white text-2xl flex justify-center mb-6">
                         Blogs
                       </div>
-                      <Blog />
+                      <Blog posts={posts} setPosts={setPosts} />
                     </div>
                   }
                 />
-                <Route path="/blog/:postHashHex" element={<BlogPost />} />
-                <Route path="/post" element={<UsePublications />} />
+                <Route
+                  path="/blog/:postId"
+                  element={<BlogPost posts={posts} />}
+                />
+                <Route
+                  path="/post"
+                  element={
+                    <div>
+                      <div className="text-white text-2xl flex justify-center mb-6">
+                        Posts
+                      </div>
+                      <UsePublications />
+                    </div>
+                  }
+                />
               </Routes>
             </div>
 

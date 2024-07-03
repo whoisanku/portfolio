@@ -6,7 +6,7 @@ import {
 import { ReactNode } from "react";
 
 function MetadataSwitch({ metadata }: { metadata: PublicationMetadata }) {
-  console.log(metadata);
+  console.log("metadata" + metadata);
   switch (metadata.__typename) {
     case "ArticleMetadataV3":
     case "TextOnlyMetadataV3":

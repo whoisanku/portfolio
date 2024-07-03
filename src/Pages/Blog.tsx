@@ -48,8 +48,10 @@ const BlogPostCard: React.FC<{ post: Post }> = ({ post }) => {
   );
 };
 
-const Blog: React.FC = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
+const Blog: React.FC<{
+  posts: Post[];
+  setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
+}> = ({ posts, setPosts }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -116,7 +118,7 @@ const Blog: React.FC = () => {
     };
 
     fetchPosts();
-  }, []);
+  }, [setPosts]);
 
   if (loading)
     return (

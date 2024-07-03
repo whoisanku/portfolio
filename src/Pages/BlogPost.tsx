@@ -1,109 +1,55 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react"; // Make sure you have lucide-react installed
+import { ChevronLeft } from "lucide-react";
+import React from "react";
+import { useParams, Link } from "react-router-dom";
+
+interface PostExtraData {
+  BlogDeltaRtfFormat: string;
+  BlogTitleSlug: string;
+  Title: string;
+}
 
 interface Post {
   PostHashHex: string;
   ImageURLs: string;
   Body: string;
   TimestampNanos: number;
-  PostExtraData?: {
-    BlogDeltaRtfFormat: string;
-    BlogTitleSlug: string;
-    Title: string;
-  };
+  PostExtraData?: PostExtraData;
   title?: string;
   content?: string;
 }
 
-const BlogPost: React.FC = () => {
-  const { postHashHex } = useParams<{ postHashHex: string }>();
-  const navigate = useNavigate();
-  const [post, setPost] = useState<Post | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+const BlogPost: React.FC<{ posts: Post[] }> = ({ posts }) => {
+  const { postId } = useParams<{ postId: string }>();
+  const post = posts.find((p) => p.PostHashHex === postId);
 
-  useEffect(() => {
-    const fetchPost = async () => {
-      const url = "https://node.deso.org/api/v0/get-single-post";
-      const data = {
-        PostHashHex: postHashHex,
-      };
-
-      try {
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        });
-
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-
-        const result = await response.json();
-        const postData = result.PostFound;
-
-        if (postData.PostExtraData?.BlogDeltaRtfFormat) {
-          const blogContent = JSON.parse(
-            postData.PostExtraData.BlogDeltaRtfFormat
-          );
-          const content = blogContent.ops
-            ? blogContent.ops
-                .map((op: any) => op.insert)
-                .join("")
-                .trim()
-            : "";
-          postData.title =
-            postData.PostExtraData.Title ||
-            postData.PostExtraData.BlogTitleSlug ||
-            "Untitled";
-          postData.content = content;
-        }
-
-        setPost(postData);
-        setLoading(false);
-      } catch (err) {
-        setError(
-          `Failed to fetch post: ${
-            err instanceof Error ? err.message : "Unknown error"
-          }`
-        );
-        setLoading(false);
-      }
-    };
-
-    if (postHashHex) {
-      fetchPost();
-    }
-  }, [postHashHex]);
-
-  const handleBack = () => {
-    navigate("/blog");
-  };
-
-  if (loading) return <div className="text-white">Loading...</div>;
-  if (error) return <div className="text-white">Error: {error}</div>;
-  if (!post) return <div className="text-white">Post not found</div>;
+  if (!post) {
+    return <div className="text-white text-center">Post not found.</div>;
+  }
 
   return (
-    <div className="text-white">
-      <button
-        onClick={handleBack}
-        className="mb-4 flex items-center text-blue-500 hover:text-blue-600"
+    <div className="max-w-2xl mx-auto px-4 ">
+      <Link
+        to="/blog"
+        className="flex items-center justify-center w-20 mx-6 py-2  bg-blue-600 text-white rounded hover:bg-blue-700"
       >
-        <ArrowLeft size={20} className="mr-2" />
-        Back to Blogs
-      </button>
-      <img src={post.ImageURLs}></img>
-      <h1 className="text-3xl font-bold mb-4">{post.title}</h1>
-      <p className="text-sm text-gray-400 mb-4">
-        Posted on:{" "}
-        {new Date(post.TimestampNanos / 1000000).toLocaleDateString()}
-      </p>
-      <div className="mt-4 whitespace-pre-wrap">{post.content}</div>
+        <ChevronLeft /> Back
+      </Link>
+      <article className="rounded-lg shadow-lg p-6 mb-6">
+        <h1 className="text-2xl font-semibold text-white">{post.title}</h1>
+        <div className="text-gray-400 text-sm mb-4">
+          Posted on:{" "}
+          {new Date(post.TimestampNanos / 1000000).toLocaleDateString()}
+        </div>
+
+        {post.ImageURLs && (
+          <img
+            src={post.ImageURLs}
+            alt={post.title}
+            className="w-full h-auto rounded-lg mb-4"
+          />
+        )}
+        <div className="text-white mb-4">{post.content}</div>
+      </article>
     </div>
   );
 };
