@@ -90,14 +90,14 @@ const Profile: React.FC = () => {
           <g key={index} transform={`rotate(${30 - 120 * index} 50 50)`}>
             <Link to={route.path}>
               <path
-                d="M 50,50 m -48,0 a 47,15 0 0,1 96,0 a 40,15 0 1,1 -96,0"
+                d="M 50,50 m -48,0 a 48,15 0 0,1 96,0 a 48,15 0 1,1 -96,0"
                 className="clickable-area"
                 onClick={() => handleClick(index)}
               />
             </Link>
             <path
               id={`orbit${index}`}
-              d="M 50,50 m -47,0 a 40,15 0 1,1 96,0 a 41,14.5 0 1,1 -96,0"
+              d="M 50,50 m -48,0 a 48,15 0 1,1 96,0 a 48,15 0 1,1 -96,0"
               fill="none"
               className={
                 isActive(route.path)
@@ -109,7 +109,7 @@ const Profile: React.FC = () => {
             <Link to={route.path}>
               <g
                 style={{
-                  offsetPath: `path('M 50,50 m -47,0 a 40,15 0 1,1 96,0 a 41,14.5 0 1,1 -96,0')`,
+                  offsetPath: `path('M 50,50 m -48,0 a 48,15 0 1,1 96,0 a 48,15 0 1,1 -96,0')`,
                   animation: `revolve 15s linear infinite`,
                   animationDelay: `${-10 * index}s`,
                 }}
@@ -133,7 +133,7 @@ const Profile: React.FC = () => {
       {/* Profile image */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div
-          className="w-40 h-40 rounded-full overflow-hidden"
+          className="w-[9.6rem] h-[9.6rem] rounded-full overflow-hidden"
           style={{
             clipPath: "circle(50%)",
             pointerEvents: "auto",

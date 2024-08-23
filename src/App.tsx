@@ -80,8 +80,20 @@ const App: React.FC = () => {
                   I love product designing & AI!
                 </p>
                 <div className="text-white text-xl mt-2 flex gap-6 opacity-75">
-                  <FaXTwitter />
-                  <FaInstagram />
+                  <a
+                    href="https://twitter.com/whoisanku"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <FaXTwitter className="hover:opacity-100 transition-opacity opacity-80 text-white" />
+                  </a>
+                  <a
+                    href="https://www.instagram.com/heyyyankittt"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <FaInstagram className="hover:opacity-100 transition-opacity opacity-80 text-white" />
+                  </a>
                 </div>
               </div>
             </div>
