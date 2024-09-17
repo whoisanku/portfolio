@@ -6,7 +6,7 @@ import Blog from "./Pages/Blog";
 import BlogPost from "./Pages/BlogPost";
 import Home from "./Pages/Home";
 import AnimatedSign from "./Components/AnimatedSign";
-import { FaXTwitter } from "react-icons/fa6";
+// import { FaXTwitter } from "react-icons/fa6";
 import { Providers } from "./Providers";
 import { UsePublications } from "./Pages/Post";
 import blueskyLogo from "./assets/bsky.svg";
