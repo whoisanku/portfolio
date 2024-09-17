@@ -7,9 +7,9 @@ import BlogPost from "./Pages/BlogPost";
 import Home from "./Pages/Home";
 import AnimatedSign from "./Components/AnimatedSign";
 import { FaXTwitter } from "react-icons/fa6";
-import { FaInstagram } from "react-icons/fa";
 import { Providers } from "./Providers";
 import { UsePublications } from "./Pages/Post";
+import blueskyLogo from "./assets/bsky.svg";
 
 interface PostExtraData {
   BlogDeltaRtfFormat: string;
@@ -79,20 +79,26 @@ const App: React.FC = () => {
                 <p className="text-white text-xl -mt-6">
                   I love product designing & AI!
                 </p>
-                <div className="text-white text-xl mt-2 flex gap-6 opacity-75">
-                  <a
+                <div className="text-white text-xl mt-2 flex items-center gap-4">
+                  {/* <a
                     href="https://twitter.com/whoisanku"
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="flex items-center"
                   >
-                    <FaXTwitter className="hover:opacity-100 transition-opacity opacity-80 text-white" />
-                  </a>
+                    <FaXTwitter className="w-6 h-6 hover:opacity-100 transition-opacity" />
+                  </a> */}
                   <a
-                    href="https://www.instagram.com/heyyyankittt"
+                    href="https://bsky.app/profile/anku.bsky.social"
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="flex items-center"
                   >
-                    <FaInstagram className="hover:opacity-100 transition-opacity opacity-80 text-white" />
+                    <img
+                      src={blueskyLogo}
+                      alt="Bluesky"
+                      className="w-6.5 h-6 hover:opacity-100 transition-opacity"
+                    />
                   </a>
                 </div>
               </div>
