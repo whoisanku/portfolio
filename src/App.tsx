@@ -6,9 +6,8 @@ import Blog from "./Pages/Blog";
 import BlogPost from "./Pages/BlogPost";
 import Home from "./Pages/Home";
 import AnimatedSign from "./Components/AnimatedSign";
-// import { FaXTwitter } from "react-icons/fa6";
 import { Providers } from "./Providers";
-import { UsePublications } from "./Pages/Post";
+import Publications from "./Pages/Post";
 import blueskyLogo from "./assets/bsky.svg";
 
 interface PostExtraData {
@@ -58,14 +57,7 @@ const App: React.FC = () => {
                 />
                 <Route
                   path="/post"
-                  element={
-                    <div>
-                      <div className="text-white text-2xl flex justify-center mb-6">
-                        Posts
-                      </div>
-                      <UsePublications />
-                    </div>
-                  }
+                  element={<Publications handle="anku.bsky.social" />}
                 />
               </Routes>
             </div>
@@ -80,14 +72,6 @@ const App: React.FC = () => {
                   I love product designing & AI!
                 </p>
                 <div className="text-white text-xl mt-2 flex items-center gap-4">
-                  {/* <a
-                    href="https://twitter.com/whoisanku"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center"
-                  >
-                    <FaXTwitter className="w-6 h-6 hover:opacity-100 transition-opacity" />
-                  </a> */}
                   <a
                     href="https://bsky.app/profile/anku.bsky.social"
                     target="_blank"
