@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import InfiniteScroll from "react-infinite-scroll-component";
+import MoonLoader from "./MoonLoader";
 
 interface PublicationsProps {
   handle: string;
 }
+
 interface ImageType {
   fullsize: string;
   thumb: string;
@@ -13,7 +15,7 @@ interface ImageType {
 interface ImageEmbed {
   $type: string;
   images: {
-    alt?: string; // Make alt optional
+    alt?: string;
     aspectRatio: { height: number; width: number };
     image: {
       type: string;
@@ -38,7 +40,7 @@ interface Post {
   };
   embed?: {
     $type: string;
-    images: ImageType[]; // Use ImageType for images
+    images: ImageType[];
   };
   indexedAt: string;
   likeCount: number;
@@ -51,34 +53,47 @@ const Publications: React.FC<PublicationsProps> = ({ handle }) => {
   const [error, setError] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState<boolean>(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const fetchPosts = useCallback(
     async (newCursor?: string | null) => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch(
-          `https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=${handle}&limit=10${
-            newCursor ? `&cursor=${newCursor}` : ""
-          }`
-        );
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        let fetchedPosts: Post[] = [];
+        let currentCursor: string | null = newCursor ?? null;
+        let continueFetching = true;
+
+        while (fetchedPosts.length < 10 && continueFetching) {
+          const response = await fetch(
+            `https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?actor=${handle}&limit=20${
+              currentCursor ? `&cursor=${currentCursor}` : ""
+            }`
+          );
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          const data = await response.json();
+          console.log(data);
+
+          const validPosts: Post[] = data.feed
+            .filter((item: any) => !item.reply && !item.reason && item.post)
+            .map((item: any) => ({
+              ...item.post,
+              embed: item.post.embed,
+            }));
+
+          fetchedPosts = fetchedPosts.concat(validPosts);
+
+          currentCursor = data.cursor ?? null;
+          const allHaveRepliesOrReasons = data.feed.every(
+            (item: any) => item.reply || item.reason
+          );
+
+          if (!currentCursor || allHaveRepliesOrReasons) {
+            continueFetching = false;
+          }
         }
-        const data = await response.json();
-        console.log(data);
-
-        const fetchedPosts: Post[] = data.feed
-          .filter((item: any) => !item.reply && !item.reason && item.post)
-          .map((item: any) => ({
-            ...item.post,
-            embed: item.post.embed, // Use the embed from the post itself
-          }));
-
-        // Check if all fetched posts have replies or reasons
-        const allHaveRepliesOrReasons = data.feed.every(
-          (item: any) => item.reply || item.reason
-        );
 
         setPosts((prevPosts) => {
           const uniquePosts = [...prevPosts];
@@ -91,11 +106,11 @@ const Publications: React.FC<PublicationsProps> = ({ handle }) => {
               uniquePosts.push(newPost);
             }
           });
-          return uniquePosts;
+          return uniquePosts.slice(0, uniquePosts.length);
         });
 
-        setCursor(data.cursor);
-        setHasMore(!!data.cursor && !allHaveRepliesOrReasons); // Update hasMore based on the new condition
+        setCursor(currentCursor);
+        setHasMore(!!currentCursor);
       } catch (err) {
         setError("Failed to fetch posts");
         console.error(err);
@@ -116,39 +131,58 @@ const Publications: React.FC<PublicationsProps> = ({ handle }) => {
     }
   };
 
-  if (error) {
-    return <div className="text-red-500">{error}</div>;
-  }
+  const openImage = (src: string) => {
+    setSelectedImage(src);
+    document.body.style.overflow = "hidden"; // Prevent background scrolling
+  };
+
+  const closeImage = () => {
+    setSelectedImage(null);
+    document.body.style.overflow = "auto"; // Restore scrolling
+  };
 
   return (
     <div className="py-4">
       <div className="max-w-2xl mx-auto px-4">
+        {error && <div className="text-red-500 p-6 mb-4">{error}</div>}
         <InfiniteScroll
           dataLength={posts.length}
           next={loadMore}
           hasMore={hasMore}
-          loader={<div className="text-white">Loading...</div>}
-          endMessage={<div className="text-white">No more posts to load.</div>}
+          loader={
+            <div className="text-white text-center">
+              <MoonLoader size={40} />
+            </div>
+          }
+          endMessage={
+            <div className="text-white text-center">No more posts to load.</div>
+          }
         >
           {posts.map((post, index) => (
             <div
               key={`${post.cid}-${index}`}
-              className="bg-gray-800 rounded-lg shadow-lg p-6 mb-6"
+              className="bg-gray-800 rounded-lg shadow-lg p-4 mb-6"
             >
               <div className="text-gray-400 text-sm mb-2">
                 {post.author.displayName} (@{post.author.handle})
               </div>
-              <div className="mb-4">
-                <p className="text-white mb-4">{post.record.text}</p>
+              <div className="mb-2">
+                <p className="text-white mb-2 whitespace-pre-wrap">
+                  {post.record.text}
+                </p>
                 {post.embed?.images && post.embed.images.length > 0 && (
                   <img
                     src={post.embed.images[0].fullsize}
                     alt={post.embed.images[0].alt || "Post image"}
-                    className="w-96 h-96 object-cover rounded-lg mb-4" // Set fixed width and height
+                    className="w-72 object-contain rounded-lg  cursor-pointer"
+                    onClick={() =>
+                      post.embed?.images &&
+                      openImage(post.embed.images[0].fullsize)
+                    }
                   />
                 )}
               </div>
-              <div className="text-gray-400 text-sm">
+              <div className="text-gray-400 text-sm flex">
                 <span className="mr-4">Likes: {post.likeCount}</span>
                 <span>Reposts: {post.repostCount}</span>
               </div>
@@ -156,6 +190,20 @@ const Publications: React.FC<PublicationsProps> = ({ handle }) => {
           ))}
         </InfiniteScroll>
       </div>
+
+      {selectedImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
+          onClick={closeImage}
+        >
+          <img
+            src={selectedImage}
+            alt="Full Screen"
+            className="w-96 h-96 object-contain rounded-lg shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 };

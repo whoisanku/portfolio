@@ -57,7 +57,15 @@ const App: React.FC = () => {
                 />
                 <Route
                   path="/post"
-                  element={<Publications handle="anku.bsky.social" />}
+                  element={
+                    <div>
+                      {" "}
+                      <div className="text-white text-2xl flex justify-center mb-6">
+                        Posts
+                      </div>
+                      <Publications handle="anku.bsky.social" />
+                    </div>
+                  }
                 />
               </Routes>
             </div>
