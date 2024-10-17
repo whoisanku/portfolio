@@ -69,9 +69,9 @@ const App: React.FC = () => {
                 />
               </Routes>
             </div>
-
+            {/* <Chatbox /> */}
             {/* Combined AnimatedSign and text with minimal spacing */}
-            <div className="flex flex-col items-center mt-4 pb-7">
+            <div className="flex flex-col items-center pb-7">
               <div className="w-48">
                 <AnimatedSign />
               </div>
