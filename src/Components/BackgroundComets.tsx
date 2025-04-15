@@ -2,10 +2,9 @@ import { memo } from "react";
 import { motion } from "framer-motion";
 
 const paths = [
-  "M-366 -205C-366 -205 -298 200 166 327C630 454 698 859 698 859",
-  "M-254 -333C-254 -333 -186 72 278 199C742 326 810 731 810 731",
-  "M-142 -461C-142 -461 -74 -56 390 71C861 190 929 595 929 595",
-  "M-86 -525C-86 -525 -18 -120 446 7C917 126 985 531 985 531",
+  // Two gentle, non-intersecting orbits
+  "M 50 500 Q 400 200 950 400",
+  "M 100 700 Q 500 600 900 800",
 ];
 
 const BackgroundComets = () => {

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import BackgroundComets from "./Components/BackgroundComets";
+import BackgroundDots from "./Components/BackgroundDots";
 import Profile from "./Components/Profile";
 import Blog from "./Pages/Blog";
 import BlogPost from "./Pages/BlogPost";
@@ -34,6 +35,7 @@ const App: React.FC = () => {
       <Router>
         <div className="App relative min-h-screen w-screen bg-black overflow-x-hidden">
           <div className="absolute inset-0 z-0">
+            <BackgroundDots />
             <BackgroundComets />
           </div>
           <div className="relative z-10 flex flex-col items-center">
