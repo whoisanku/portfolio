@@ -7,10 +7,9 @@ import Blog from "./Pages/Blog";
 import BlogPost from "./Pages/BlogPost";
 import Home from "./Pages/Home";
 import AnimatedSign from "./Components/AnimatedSign";
-import { FaXTwitter } from "react-icons/fa6";
-import { FaInstagram } from "react-icons/fa";
 import { Providers } from "./Providers";
-import { UsePublications } from "./Pages/Post";
+import Publications from "./Pages/Post";
+import blueskyLogo from "./assets/bsky.svg";
 
 interface PostExtraData {
   BlogDeltaRtfFormat: string;
@@ -62,18 +61,19 @@ const App: React.FC = () => {
                   path="/post"
                   element={
                     <div>
+                      {" "}
                       <div className="text-white text-2xl flex justify-center mb-6">
                         Posts
                       </div>
-                      <UsePublications />
+                      <Publications handle="anku.bsky.social" />
                     </div>
                   }
                 />
               </Routes>
             </div>
-
+            {/* <Chatbox /> */}
             {/* Combined AnimatedSign and text with minimal spacing */}
-            <div className="flex flex-col items-center mt-4 pb-7">
+            <div className="flex flex-col items-center pb-7">
               <div className="w-48">
                 <AnimatedSign />
               </div>
@@ -81,9 +81,19 @@ const App: React.FC = () => {
                 <p className="text-white text-xl -mt-6">
                   I love product designing & AI!
                 </p>
-                <div className="text-white text-xl mt-2 flex gap-6 opacity-75">
-                  <FaXTwitter />
-                  <FaInstagram />
+                <div className="text-white text-xl mt-2 flex items-center gap-4">
+                  <a
+                    href="https://bsky.app/profile/anku.bsky.social"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center"
+                  >
+                    <img
+                      src={blueskyLogo}
+                      alt="Bluesky"
+                      className="w-6.5 h-6 hover:opacity-100 transition-opacity"
+                    />
+                  </a>
                 </div>
               </div>
             </div>
