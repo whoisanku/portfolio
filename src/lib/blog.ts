@@ -10,6 +10,7 @@ export interface BlogEntryRecord {
   createdAt?: string;
   visibility?: "public" | "url" | "author";
   isDraft?: boolean;
+  theme?: string;
 }
 
 export interface BlogEntry {
@@ -64,7 +65,13 @@ export function excerpt(markdown: string, length = 180): string {
 /** Create a WhiteWind blog entry in the signed-in user's repo. */
 export async function createBlogEntry(
   agent: Agent,
-  input: { title: string; content: string },
+  input: {
+    title: string;
+    content: string;
+    visibility?: "public" | "url" | "author";
+    isDraft?: boolean;
+    theme?: string;
+  },
 ): Promise<{ rkey: string }> {
   const res = await agent.com.atproto.repo.createRecord({
     repo: agent.assertDid,
@@ -74,7 +81,9 @@ export async function createBlogEntry(
       title: input.title,
       content: input.content,
       createdAt: new Date().toISOString(),
-      visibility: "public",
+      visibility: input.visibility ?? "public",
+      ...(input.isDraft ? { isDraft: true } : {}),
+      ...(input.theme ? { theme: input.theme } : {}),
     } satisfies BlogEntryRecord,
   });
   return { rkey: rkeyFromUri(res.data.uri) };

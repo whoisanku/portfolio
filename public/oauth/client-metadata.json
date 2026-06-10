@@ -2,7 +2,7 @@
   "client_id": "https://anku.vercel.app/oauth/client-metadata.json",
   "client_name": "Ankit Bhandari - Portfolio",
   "client_uri": "https://anku.vercel.app",
-  "redirect_uris": ["https://anku.vercel.app/admin"],
+  "redirect_uris": ["https://anku.vercel.app/oauth/callback"],
   "scope": "atproto transition:generic",
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
@@ -10,4 +10,3 @@
   "application_type": "web",
   "dpop_bound_access_tokens": true
 }
-

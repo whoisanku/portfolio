@@ -12,40 +12,49 @@ import {
 } from "react";
 import { resolveHandle } from "../lib/atproto";
 import { OWNER_HANDLE } from "../lib/config";
-import { devLoopbackUrl, getOAuthClient } from "../lib/oauth";
+import { getOAuthClient } from "../lib/oauth";
 
 export type AuthStatus = "loading" | "signed-out" | "signed-in";
 
+const IS_DEV = window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1" ||
+  window.location.hostname === "[::1]";
+
 interface AuthContextValue {
   status: AuthStatus;
-  /** Authenticated agent — only set when the owner is signed in. */
+  /** Authenticated agent — only set when the owner is signed in (null in dev mode). */
   agent: Agent | null;
   error: string | null;
+  /** True when running on localhost — OAuth is bypassed, agent is null. */
+  devMode: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** Whether the admin modal is open. */
+  modalOpen: boolean;
+  openModal: () => void;
+  closeModal: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // On localhost the OAuth client would force-redirect to 127.0.0.1 on
-  // construction, so skip session init there — the hop to 127.0.0.1 happens
-  // when the user actually clicks sign-in.
   const [status, setStatus] = useState<AuthStatus>(() =>
-    devLoopbackUrl() ? "signed-out" : "loading",
+    IS_DEV ? "signed-in" : "loading",
   );
   const [agent, setAgent] = useState<Agent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const sessionRef = useRef<OAuthSession | null>(null);
   const initialized = useRef(false);
 
   useEffect(() => {
-    // client.init() must run exactly once per page load.
     if (initialized.current) return;
     initialized.current = true;
 
-    if (devLoopbackUrl()) return;
+    // Dev mode: auto-signed-in with no agent — no OAuth needed.
+    if (IS_DEV) return;
 
+    // Production: run the OAuth init flow.
     (async () => {
       try {
         const client = await getOAuthClient();
@@ -67,6 +76,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionRef.current = result.session;
         setAgent(new Agent(result.session));
         setStatus("signed-in");
+
+        // Auto-open modal after OAuth callback
+        if (
+          sessionStorage.getItem("open-admin-modal") === "1" ||
+          window.location.pathname === "/oauth/callback"
+        ) {
+          sessionStorage.removeItem("open-admin-modal");
+          setModalOpen(true);
+          if (window.location.pathname === "/oauth/callback") {
+            window.history.replaceState(null, "", "/");
+          }
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Sign-in failed");
         setStatus("signed-out");
@@ -76,25 +97,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async () => {
     setError(null);
-    const loopback = devLoopbackUrl();
-    if (loopback) {
-      window.location.replace(loopback);
+
+    if (IS_DEV) {
+      // Dev mode: just open the modal, no OAuth needed.
+      setStatus("signed-in");
+      setModalOpen(true);
       return;
     }
+
+    sessionStorage.setItem("open-admin-modal", "1");
     const client = await getOAuthClient();
-    // Redirects away; the promise only settles if the user aborts.
     await client.signIn(OWNER_HANDLE, { state: "admin" });
   }, []);
 
   const signOut = useCallback(async () => {
-    await sessionRef.current?.signOut();
-    sessionRef.current = null;
+    if (!IS_DEV) {
+      await sessionRef.current?.signOut();
+      sessionRef.current = null;
+    }
     setAgent(null);
-    setStatus("signed-out");
+    setStatus(IS_DEV ? "signed-out" : "signed-out");
+    setModalOpen(false);
   }, []);
 
+  const openModal = useCallback(() => setModalOpen(true), []);
+  const closeModal = useCallback(() => setModalOpen(false), []);
+
   return (
-    <AuthContext.Provider value={{ status, agent, error, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{
+        status,
+        agent,
+        error,
+        devMode: IS_DEV,
+        signIn,
+        signOut,
+        modalOpen,
+        openModal,
+        closeModal,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
