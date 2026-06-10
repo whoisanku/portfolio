@@ -110,7 +110,28 @@ export async function createBlogEntry(
   });
   return { rkey: rkeyFromUri(res.data.uri) };
 }
-
 export function whtwndUrl(handle: string, rkey: string): string {
   return `https://whtwnd.com/${handle}/${rkey}`;
+}
+
+/** Delete a WhiteWind blog entry in the signed-in user's repo. */
+export async function deleteBlogEntry(
+  agent: Agent | null,
+  rkey: string,
+  devMode: boolean,
+): Promise<void> {
+  if (!agent) {
+    if (devMode) {
+      // Simulate delete locally/delay in dev mode
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return;
+    }
+    throw new Error("Authentication required to delete a blog post.");
+  }
+
+  await agent.com.atproto.repo.deleteRecord({
+    repo: agent.assertDid,
+    collection: BLOG_COLLECTION,
+    rkey,
+  });
 }

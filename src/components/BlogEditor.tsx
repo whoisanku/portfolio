@@ -269,6 +269,7 @@ const BlogEditor = ({
   // Cover image states
   const [coverImage, setCoverImage] = useState<{
     url: string;
+    previewUrl?: string;
     width?: number;
     height?: number;
     metadata?: WhiteWindBlobMetadata;
@@ -484,7 +485,7 @@ const BlogEditor = ({
           const url = URL.createObjectURL(file);
           registerPreviewObjectUrl(url);
           const dims = await getImageDimensions(file).catch(() => ({ width: 1200, height: 630 }));
-          setCoverImage({ url, ...dims });
+          setCoverImage({ url, previewUrl: url, ...dims });
         } catch (err) {
           onError(err instanceof Error ? err.message : "Failed to read local cover image");
         } finally {
@@ -496,10 +497,13 @@ const BlogEditor = ({
 
     setUploadingCover(true);
     try {
+      const localPreviewUrl = URL.createObjectURL(file);
+      registerPreviewObjectUrl(localPreviewUrl);
       const uploaded = await uploadImageForBlog(agent, file);
       const dims = await getImageDimensions(file).catch(() => ({ width: 1200, height: 630 }));
       setCoverImage({
         url: uploaded.url,
+        previewUrl: localPreviewUrl,
         width: dims.width,
         height: dims.height,
         metadata: uploaded.metadata,
@@ -645,7 +649,7 @@ const BlogEditor = ({
       <div className="border-b border-zinc-800 py-3 px-1">
         {coverImage ? (
           <div className="cover-upload-preview group">
-            <img src={coverImage.url} alt="Cover Preview" />
+            <img src={coverImage.previewUrl || coverImage.url} alt="Cover Preview" />
             <div className="cover-upload-overlay">
               <button
                 type="button"

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet } from "react-router-dom";
 import blueskyLogo from "../assets/bsky.svg";
 import { useAuth } from "../auth/AuthContext";
-import { OWNER_HANDLE } from "../lib/config";
+import { OWNER_HANDLE, PUBLIC_API } from "../lib/config";
 import AdminModal from "./AdminModal";
 import AnimatedSign from "./AnimatedSign";
 import BackgroundDots from "./BackgroundDots";
@@ -13,6 +13,21 @@ const Layout = () => {
   const { status, error: authError, signIn, openModal } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`${PUBLIC_API}/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(OWNER_HANDLE)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch profile");
+        return res.json();
+      })
+      .then((data: { avatar?: string }) => {
+        if (data.avatar) setAvatarUrl(data.avatar);
+      })
+      .catch((err) => {
+        console.error("Error fetching avatar:", err);
+      });
+  }, []);
 
   const isSignedIn = status === "signed-in";
 
@@ -76,7 +91,7 @@ const Layout = () => {
                 <img
                   src={blueskyLogo}
                   alt="Bluesky"
-                  className="h-5 w-5"
+                  className="h-5 w-5 object-contain"
                 />
                 <span className="text-sm font-medium text-zinc-200">
                   Bluesky OAuth
@@ -94,12 +109,20 @@ const Layout = () => {
                 disabled={status === "loading"}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-600/20 disabled:opacity-50"
               >
-                <img
-                  src={blueskyLogo}
-                  alt=""
-                  className="h-4 w-4 brightness-0 invert"
-                />
-                Continue with {OWNER_HANDLE}
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={OWNER_HANDLE}
+                    className="h-5 w-5 rounded-full object-cover shrink-0"
+                  />
+                ) : (
+                  <img
+                    src={blueskyLogo}
+                    alt=""
+                    className="h-5 w-5 object-contain brightness-0 invert shrink-0"
+                  />
+                )}
+                <span>{OWNER_HANDLE}</span>
               </button>
               {authError && (
                 <p className="text-xs text-red-400">{authError}</p>
@@ -135,7 +158,7 @@ const Layout = () => {
             <img
               src={blueskyLogo}
               alt="Bluesky"
-              className="h-6 w-6 opacity-70 transition-opacity hover:opacity-100"
+              className="h-6 w-6 object-contain opacity-70 transition-opacity hover:opacity-100"
             />
           </a>
         </div>

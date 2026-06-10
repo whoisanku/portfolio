@@ -1,15 +1,33 @@
-import { ChevronLeft, ExternalLink } from "lucide-react";
+import { ChevronLeft, ExternalLink, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import ErrorMessage from "../components/ErrorMessage";
 import Loader from "../components/Loader";
-import { getBlogEntry, whtwndUrl, type BlogEntry } from "../lib/blog";
+import { getBlogEntry, whtwndUrl, deleteBlogEntry, type BlogEntry } from "../lib/blog";
 import { OWNER_HANDLE } from "../lib/config";
+import { useAuth } from "../auth/AuthContext";
 
 const BlogPostView = ({ rkey }: { rkey: string }) => {
   const [entry, setEntry] = useState<BlogEntry | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { agent, status, devMode } = useAuth();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const isAdmin = status === "signed-in";
+
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this blog post?")) return;
+    setIsDeleting(true);
+    try {
+      await deleteBlogEntry(agent, rkey, devMode);
+      navigate("/blog");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete post");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -48,24 +66,38 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
       )}
 
       <h1 className="text-3xl font-semibold text-white">{entry.title}</h1>
-      <div className="mt-2 mb-8 flex items-center gap-3 text-sm text-zinc-500">
-        {entry.createdAt && (
-          <time>
-            {new Date(entry.createdAt).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </time>
+      <div className="mt-2 mb-8 flex items-center justify-between gap-3 text-sm text-zinc-500">
+        <div className="flex items-center gap-3">
+          {entry.createdAt && (
+            <time>
+              {new Date(entry.createdAt).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </time>
+          )}
+          <a
+            href={whtwndUrl(OWNER_HANDLE, entry.rkey)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 transition-colors hover:text-blue-400"
+          >
+            WhiteWind <ExternalLink size={12} />
+          </a>
+        </div>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="inline-flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-400 transition-colors disabled:opacity-50"
+            title="Delete post"
+          >
+            <Trash2 size={12} />
+            {isDeleting ? "Deleting..." : "Delete"}
+          </button>
         )}
-        <a
-          href={whtwndUrl(OWNER_HANDLE, entry.rkey)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 transition-colors hover:text-blue-400"
-        >
-          WhiteWind <ExternalLink size={12} />
-        </a>
       </div>
 
       <div className="prose prose-invert prose-zinc max-w-none prose-a:text-blue-400 prose-img:rounded-lg">

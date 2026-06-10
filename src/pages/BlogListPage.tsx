@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Trash2 } from "lucide-react";
 import ErrorMessage from "../components/ErrorMessage";
 import Loader from "../components/Loader";
-import { excerpt, listBlogEntries, type BlogEntry } from "../lib/blog";
+import { useAuth } from "../auth/AuthContext";
+import { excerpt, listBlogEntries, deleteBlogEntry, type BlogEntry } from "../lib/blog";
 
 const formatDate = (iso?: string) =>
   iso
@@ -22,6 +24,23 @@ function getCoverUrl(entry: BlogEntry): string | undefined {
 const BlogListPage = () => {
   const [entries, setEntries] = useState<BlogEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { agent, status, devMode } = useAuth();
+  const [deletingRkey, setDeletingRkey] = useState<string | null>(null);
+
+  const isAdmin = status === "signed-in";
+
+  const handleDelete = async (rkey: string) => {
+    if (!window.confirm("Are you sure you want to delete this blog post?")) return;
+    setDeletingRkey(rkey);
+    try {
+      await deleteBlogEntry(agent, rkey, devMode);
+      setEntries((prev) => (prev ? prev.filter((e) => e.rkey !== rkey) : null));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete post");
+    } finally {
+      setDeletingRkey(null);
+    }
+  };
 
   useEffect(() => {
     listBlogEntries()
@@ -73,9 +92,26 @@ const BlogListPage = () => {
               <span className="rounded-full bg-blue-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-400">
                 Latest Post
               </span>
-              <time className="text-xs text-zinc-500">
-                {formatDate(featured.createdAt)}
-              </time>
+              <div className="flex items-center gap-3">
+                <time className="text-xs text-zinc-500">
+                  {formatDate(featured.createdAt)}
+                </time>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDelete(featured.rkey);
+                    }}
+                    disabled={deletingRkey === featured.rkey}
+                    className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-red-400 transition-colors disabled:opacity-50"
+                    title="Delete post"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
             </div>
             <h2 className="mt-3 text-xl font-bold text-zinc-100 transition-colors group-hover:text-blue-400 md:text-2xl">
               {featured.title}
@@ -103,10 +139,25 @@ const BlogListPage = () => {
                     className="group flex gap-5 rounded-2xl border border-transparent p-4 transition-all duration-300 hover:border-zinc-800/80 hover:bg-zinc-900/40 hover:shadow-md"
                   >
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-between gap-3">
                         <time className="text-xs text-zinc-500">
                           {formatDate(entry.createdAt)}
                         </time>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDelete(entry.rkey);
+                            }}
+                            disabled={deletingRkey === entry.rkey}
+                            className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-red-400 transition-colors disabled:opacity-50"
+                            title="Delete post"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                       <h4 className="mt-1.5 text-base font-semibold text-zinc-100 transition-colors group-hover:text-blue-400 line-clamp-1">
                         {entry.title}
