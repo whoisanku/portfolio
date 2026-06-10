@@ -108,8 +108,8 @@ export async function uploadImage(
 }
 
 /**
- * Upload an image and return a PDS-hosted URL for use in markdown.
- * The URL pattern is: https://<pds>/xrpc/com.atproto.sync.getBlob?did=<did>&cid=<cid>
+ * Upload an image and return a CDN-hosted URL for use in markdown.
+ * Uses the Bluesky CDN: https://cdn.bsky.app/img/feed_fullsize/plain/{did}/{cid}@jpeg
  */
 export async function uploadImageForMarkdown(
   agent: Agent,
@@ -126,6 +126,6 @@ export async function uploadImageForMarkdown(
   const did = agent.assertDid;
   const cid = blobRef?.ref?.$link ?? blobRef?.ref?.toString?.() ?? String(blobRef.ref);
 
-  // Construct the blob URL from the agent's PDS
-  return `https://bsky.social/xrpc/com.atproto.sync.getBlob?did=${did}&cid=${cid}`;
+  // Use Bluesky CDN — path-based format avoids markdown & encoding issues
+  return `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${cid}@jpeg`;
 }
