@@ -1,6 +1,7 @@
 import type { Agent } from "@atproto/api";
 import { getRecord, listRecords, resolveHandle, rkeyFromUri } from "./atproto";
 import { BLOG_COLLECTION, OWNER_HANDLE } from "./config";
+import type { WhiteWindBlobMetadata } from "./mediaUpload";
 
 /** WhiteWind blog entry record (com.whtwnd.blog.entry). */
 export interface BlogEntryRecord {
@@ -11,6 +12,7 @@ export interface BlogEntryRecord {
   visibility?: "public" | "url" | "author";
   isDraft?: boolean;
   theme?: string;
+  blobs?: WhiteWindBlobMetadata[];
 }
 
 export interface BlogEntry {
@@ -71,11 +73,13 @@ export async function createBlogEntry(
     visibility?: "public" | "url" | "author";
     isDraft?: boolean;
     theme?: string;
+    blobs?: WhiteWindBlobMetadata[];
   },
 ): Promise<{ rkey: string }> {
   const res = await agent.com.atproto.repo.createRecord({
     repo: agent.assertDid,
     collection: BLOG_COLLECTION,
+    validate: false,
     record: {
       $type: BLOG_COLLECTION,
       title: input.title,
@@ -84,6 +88,7 @@ export async function createBlogEntry(
       visibility: input.visibility ?? "public",
       ...(input.isDraft ? { isDraft: true } : {}),
       ...(input.theme ? { theme: input.theme } : {}),
+      ...(input.blobs?.length ? { blobs: input.blobs } : {}),
     } satisfies BlogEntryRecord,
   });
   return { rkey: rkeyFromUri(res.data.uri) };

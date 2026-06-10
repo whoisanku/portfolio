@@ -17,11 +17,21 @@ import {
   Quote,
   Strikethrough,
 } from "lucide-react";
-import { useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ImgHTMLAttributes,
+} from "react";
 import Markdown from "react-markdown";
 import { createBlogEntry, whtwndUrl } from "../lib/blog";
 import { OWNER_HANDLE } from "../lib/config";
-import { uploadImageForMarkdown } from "../lib/mediaUpload";
+import {
+  uploadImageForBlog,
+  type WhiteWindBlobMetadata,
+} from "../lib/mediaUpload";
 
 interface BlogEditorProps {
   agent: Agent | null;
@@ -62,6 +72,10 @@ function estimateReadTime(text: string): string {
   return `${mins} min read`;
 }
 
+function altFromFileName(file: File): string {
+  return file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+}
+
 const BlogEditor = ({
   agent,
   devMode,
@@ -76,10 +90,72 @@ const BlogEditor = ({
   const [isDraft, setIsDraft] = useState(false);
   const [busy, setBusy] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageBlobs, setImageBlobs] = useState<WhiteWindBlobMetadata[]>([]);
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<Record<string, string>>({});
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const previewObjectUrlsRef = useRef<string[]>([]);
 
   const wordCount = content.split(/\s+/).filter(Boolean).length;
+
+  const registerPreviewObjectUrl = (url: string) => {
+    previewObjectUrlsRef.current.push(url);
+  };
+
+  const clearImagePreviews = () => {
+    for (const url of previewObjectUrlsRef.current) {
+      URL.revokeObjectURL(url);
+    }
+    previewObjectUrlsRef.current = [];
+    setImagePreviewUrls({});
+  };
+
+  useEffect(() => {
+    return () => {
+      for (const url of previewObjectUrlsRef.current) {
+        URL.revokeObjectURL(url);
+      }
+      previewObjectUrlsRef.current = [];
+    };
+  }, []);
+
+  const insertImageMarkdown = (url: string, alt: string) => {
+    const ta = textareaRef.current;
+    const markdown = `![${alt}](${url})`;
+
+    if (!ta) {
+      setContent((prev) => `${prev}${prev.endsWith("\n") || !prev ? "" : "\n"}${markdown}\n`);
+      return;
+    }
+
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    setContent((prev) => {
+      const safeStart = Math.min(start, prev.length);
+      const safeEnd = Math.min(end, prev.length);
+      const needsLeadingNewline = safeStart > 0 && prev[safeStart - 1] !== "\n";
+      const needsTrailingNewline = Boolean(prev[safeEnd] && prev[safeEnd] !== "\n");
+      const insertion = `${needsLeadingNewline ? "\n" : ""}${markdown}\n${needsTrailingNewline ? "\n" : ""}`;
+
+      requestAnimationFrame(() => {
+        ta.focus();
+        const cursorPos = safeStart + insertion.length;
+        ta.selectionStart = cursorPos;
+        ta.selectionEnd = cursorPos;
+      });
+
+      return prev.slice(0, safeStart) + insertion + prev.slice(safeEnd);
+    });
+  };
+
+  const markdownComponents = useMemo(
+    () => ({
+      img: ({ src = "", alt = "", title }: ImgHTMLAttributes<HTMLImageElement>) => (
+        <img src={imagePreviewUrls[src] ?? src} alt={alt} title={title} />
+      ),
+    }),
+    [imagePreviewUrls],
+  );
 
   const insertAtCursor = (prefix: string, suffix: string, block?: boolean) => {
     const ta = textareaRef.current;
@@ -123,17 +199,17 @@ const BlogEditor = ({
   };
 
   const handleImageUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+    const selectedFiles = Array.from(files ?? []);
+    if (selectedFiles.length === 0) return;
 
     if (!agent) {
       if (devMode) {
         setUploadingImage(true);
         try {
-          for (const file of Array.from(files)) {
+          for (const file of selectedFiles) {
             const url = URL.createObjectURL(file);
-            const alt = file.name.replace(/\.[^.]+$/, "");
-            const md = `\n![${alt}](${url})\n`;
-            setContent((prev) => prev + md);
+            registerPreviewObjectUrl(url);
+            insertImageMarkdown(url, altFromFileName(file));
           }
         } catch (err) {
           onError(err instanceof Error ? err.message : "Failed to read local image");
@@ -146,11 +222,16 @@ const BlogEditor = ({
 
     setUploadingImage(true);
     try {
-      for (const file of Array.from(files)) {
-        const url = await uploadImageForMarkdown(agent, file);
-        const alt = file.name.replace(/\.[^.]+$/, "");
-        const md = `\n![${alt}](${url})\n`;
-        setContent((prev) => prev + md);
+      for (const file of selectedFiles) {
+        const previewUrl = URL.createObjectURL(file);
+        registerPreviewObjectUrl(previewUrl);
+        const uploaded = await uploadImageForBlog(agent, file);
+        setImageBlobs((prev) => [...prev, uploaded.metadata]);
+        setImagePreviewUrls((prev) => ({
+          ...prev,
+          [uploaded.url]: previewUrl,
+        }));
+        insertImageMarkdown(uploaded.url, altFromFileName(file));
       }
     } catch (err) {
       onError(
@@ -182,7 +263,7 @@ const BlogEditor = ({
 
   const publish = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim() || busy) return;
+    if (!title.trim() || !content.trim() || busy || uploadingImage) return;
 
     if (!agent) {
       if (devMode) {
@@ -192,6 +273,8 @@ const BlogEditor = ({
         setBusy(false);
         setTitle("");
         setContent("");
+        setImageBlobs([]);
+        clearImagePreviews();
         onPublished({
           whitewind: `https://whtwnd.com/${OWNER_HANDLE}/mock-dev-rkey`,
           internal: `/blog/mock-dev-rkey`,
@@ -207,9 +290,12 @@ const BlogEditor = ({
         content,
         visibility,
         isDraft,
+        blobs: imageBlobs,
       });
       setTitle("");
       setContent("");
+      setImageBlobs([]);
+      clearImagePreviews();
       onPublished({
         whitewind: whtwndUrl(OWNER_HANDLE, rkey),
         internal: `/blog/${rkey}`,
@@ -274,7 +360,10 @@ const BlogEditor = ({
           accept="image/jpeg,image/png,image/webp,image/gif"
           multiple
           className="hidden"
-          onChange={(e) => handleImageUpload(e.target.files)}
+          onChange={(e) => {
+            void handleImageUpload(e.target.files);
+            e.currentTarget.value = "";
+          }}
         />
 
         {/* Separator */}
@@ -322,7 +411,9 @@ const BlogEditor = ({
           >
             <div className="prose prose-invert prose-zinc max-w-none prose-a:text-blue-400 prose-img:rounded-lg prose-headings:text-white">
               {title && <h1>{title}</h1>}
-              <Markdown>{content || "*Nothing to preview yet…*"}</Markdown>
+              <Markdown components={markdownComponents}>
+                {content || "*Nothing to preview yet…*"}
+              </Markdown>
             </div>
           </div>
         )}
@@ -366,7 +457,13 @@ const BlogEditor = ({
 
         <button
           type="submit"
-          disabled={busy || (!agent && !devMode) || !title.trim() || !content.trim()}
+          disabled={
+            busy ||
+            uploadingImage ||
+            (!agent && !devMode) ||
+            !title.trim() ||
+            !content.trim()
+          }
           className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-all hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-600/20 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy

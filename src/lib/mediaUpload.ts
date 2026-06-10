@@ -1,10 +1,22 @@
 import type { Agent } from "@atproto/api";
+import { getPdsEndpoint } from "./atproto";
 
 export interface UploadedImage {
   blob: unknown; // BlobRef from the PDS
   width: number;
   height: number;
   mimeType: string;
+}
+
+export interface WhiteWindBlobMetadata {
+  blobref: unknown;
+  name?: string;
+  encoding?: string;
+}
+
+export interface UploadedBlogImage {
+  url: string;
+  metadata: WhiteWindBlobMetadata;
 }
 
 /**
@@ -30,12 +42,12 @@ export function getImageDimensions(
 
 /**
  * Compress an image client-side using canvas.
- * Strips EXIF, resizes if needed, and returns a Uint8Array + mime type.
+ * Strips EXIF, resizes if needed, and returns a Uint8Array and mime type.
  */
 export async function compressImage(
   file: File,
   maxDimension = 2048,
-  maxSizeBytes = 976_560, // ~976 KB, safely under AT Proto 1MB limit
+  maxSizeBytes = 976_560, // Safely under the AT Protocol 1 MB blob limit.
 ): Promise<{ data: Uint8Array; mimeType: string }> {
   const url = URL.createObjectURL(file);
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -48,7 +60,6 @@ export async function compressImage(
 
   let { naturalWidth: w, naturalHeight: h } = img;
 
-  // Scale down if either dimension exceeds max
   if (w > maxDimension || h > maxDimension) {
     const ratio = Math.min(maxDimension / w, maxDimension / h);
     w = Math.round(w * ratio);
@@ -58,14 +69,14 @@ export async function compressImage(
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Failed to prepare image canvas");
   ctx.drawImage(img, 0, 0, w, h);
 
-  // Try WebP first, fall back to JPEG
   for (const mime of ["image/webp", "image/jpeg"] as const) {
     for (let quality = 0.92; quality >= 0.5; quality -= 0.1) {
-      const blob = await new Promise<Blob | null>((r) =>
-        canvas.toBlob(r, mime, quality),
+      const blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, mime, quality),
       );
       if (blob && blob.size <= maxSizeBytes) {
         const buf = await blob.arrayBuffer();
@@ -74,9 +85,8 @@ export async function compressImage(
     }
   }
 
-  // Last resort: lowest quality JPEG
-  const blob = await new Promise<Blob | null>((r) =>
-    canvas.toBlob(r, "image/jpeg", 0.4),
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, "image/jpeg", 0.4),
   );
   if (!blob) throw new Error("Failed to compress image");
   const buf = await blob.arrayBuffer();
@@ -107,25 +117,49 @@ export async function uploadImage(
   };
 }
 
+function cidFromBlobRef(blobRef: unknown): string {
+  const ref = (blobRef as { ref?: unknown }).ref;
+  if (typeof ref === "string") return ref;
+  if (ref && typeof ref === "object" && "$link" in ref) {
+    return String((ref as { $link: string }).$link);
+  }
+  if (ref && typeof (ref as { toString?: unknown }).toString === "function") {
+    return (ref as { toString: () => string }).toString();
+  }
+  throw new Error("Uploaded image blob did not include a CID");
+}
+
 /**
- * Upload an image and return a CDN-hosted URL for use in markdown.
- * Uses the Bluesky CDN: https://cdn.bsky.app/img/feed_fullsize/plain/{did}/{cid}@jpeg
+ * Upload an image and return the URL/metadata shape WhiteWind uses in entries.
  */
-export async function uploadImageForMarkdown(
+export async function uploadImageForBlog(
   agent: Agent,
   file: File,
-): Promise<string> {
+): Promise<UploadedBlogImage> {
   const compressed = await compressImage(file);
 
   const { data: uploadRes } = await agent.uploadBlob(compressed.data, {
     encoding: compressed.mimeType,
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const blobRef = uploadRes.blob as any;
   const did = agent.assertDid;
-  const cid = blobRef?.ref?.$link ?? blobRef?.ref?.toString?.() ?? String(blobRef.ref);
+  const pds = (await getPdsEndpoint(did)).replace(/\/$/, "");
+  const cid = cidFromBlobRef(uploadRes.blob);
 
-  // Use Bluesky CDN — path-based format avoids markdown & encoding issues
-  return `https://cdn.bsky.app/img/feed_fullsize/plain/${did}/${cid}@jpeg`;
+  return {
+    url: `${pds}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`,
+    metadata: {
+      blobref: uploadRes.blob,
+      encoding: compressed.mimeType,
+      name: file.name,
+    },
+  };
+}
+
+export async function uploadImageForMarkdown(
+  agent: Agent,
+  file: File,
+): Promise<string> {
+  const { url } = await uploadImageForBlog(agent, file);
+  return url;
 }
