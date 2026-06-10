@@ -145,3 +145,248 @@ body {
 .admin-editor-preview::-webkit-scrollbar-thumb:hover {
   background: rgba(63, 63, 70, 0.8);
 }
+
+.admin-rich-editor:empty::before {
+  content: attr(data-placeholder);
+  color: rgb(82 82 91);
+  pointer-events: none;
+}
+
+.admin-rich-editor {
+  font-size: 0.95rem;
+  line-height: 1.75;
+}
+
+.admin-rich-editor:focus {
+  outline: none;
+}
+
+.admin-rich-editor h1,
+.admin-rich-editor h2,
+.admin-rich-editor h3 {
+  color: white;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 1.4rem 0 0.65rem;
+}
+
+.admin-rich-editor h1 {
+  font-size: 1.8rem;
+}
+
+.admin-rich-editor h2 {
+  font-size: 1.45rem;
+}
+
+.admin-rich-editor h3 {
+  font-size: 1.15rem;
+}
+
+.admin-rich-editor p,
+.admin-rich-editor div {
+  margin: 0.55rem 0;
+}
+
+.admin-rich-editor strong,
+.admin-rich-editor b {
+  color: white;
+  font-weight: 700;
+}
+
+.admin-rich-editor em,
+.admin-rich-editor i {
+  font-style: italic;
+}
+
+.admin-rich-editor s,
+.admin-rich-editor strike,
+.admin-rich-editor del {
+  color: rgb(161 161 170);
+  text-decoration: line-through;
+}
+
+.admin-rich-editor code {
+  border: 1px solid rgb(39 39 42);
+  border-radius: 4px;
+  background: rgb(24 24 27 / 0.9);
+  color: rgb(226 232 240);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.86em;
+  padding: 0.12rem 0.28rem;
+}
+
+.admin-rich-editor a {
+  color: rgb(96 165 250);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.admin-rich-editor blockquote {
+  border-left: 3px solid rgb(59 130 246 / 0.75);
+  color: rgb(212 212 216);
+  margin: 1rem 0;
+  padding-left: 1rem;
+}
+
+.admin-rich-editor ul,
+.admin-rich-editor ol {
+  margin: 0.75rem 0;
+  padding-left: 1.4rem;
+}
+
+.admin-rich-editor ul {
+  list-style: disc;
+}
+
+.admin-rich-editor ol {
+  list-style: decimal;
+}
+
+.admin-rich-editor li {
+  margin: 0.25rem 0;
+}
+
+.admin-rich-editor hr {
+  border: 0;
+  border-top: 1px solid rgb(39 39 42);
+  margin: 1.25rem 0;
+}
+
+.blog-image-block {
+  border: 1px solid rgb(39 39 42);
+  border-radius: 8px;
+  background: rgb(9 9 11 / 0.8);
+  margin: 1rem 0;
+  overflow: hidden;
+}
+
+.blog-image-frame {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.35);
+}
+
+.blog-image-frame img {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.blog-image-remove {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.72);
+  color: rgb(228 228 231);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.blog-image-remove:hover {
+  background: rgb(239 68 68);
+  color: white;
+}
+
+.blog-image-block input[data-image-alt] {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-top: 1px solid rgb(39 39 42);
+  background: rgb(9 9 11 / 0.85);
+  color: rgb(212 212 216);
+  font-size: 0.875rem;
+  outline: none;
+  padding: 0.6rem 0.75rem;
+}
+
+.blog-image-block input[data-image-alt]::placeholder {
+  color: rgb(82 82 91);
+}
+
+/* ─── Editor Active Styles & Cover Image Uploader ─── */
+.toolbar-btn-active {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  color: rgb(96, 165, 250) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.1);
+}
+
+.cover-upload-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed rgba(63, 63, 70, 0.5);
+  border-radius: 12px;
+  background: rgba(9, 9, 11, 0.4);
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: 1rem 0;
+}
+
+.cover-upload-zone:hover {
+  border-color: rgba(96, 165, 250, 0.6);
+  background: rgba(96, 165, 250, 0.03);
+}
+
+.cover-upload-preview {
+  position: relative;
+  width: 100%;
+  max-height: 280px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 1rem 0;
+  border: 1px solid rgba(63, 63, 70, 0.5);
+}
+
+.cover-upload-preview img {
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+}
+
+.cover-upload-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.cover-upload-preview:hover .cover-upload-overlay {
+  opacity: 1;
+}
+
+.cover-remove-btn {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.cover-remove-btn:hover {
+  background: rgb(220, 38, 38);
+}

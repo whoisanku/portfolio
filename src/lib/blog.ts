@@ -13,6 +13,11 @@ export interface BlogEntryRecord {
   isDraft?: boolean;
   theme?: string;
   blobs?: WhiteWindBlobMetadata[];
+  ogp?: {
+    url: string;
+    width?: number;
+    height?: number;
+  };
 }
 
 export interface BlogEntry {
@@ -21,6 +26,11 @@ export interface BlogEntry {
   title: string;
   content: string;
   createdAt?: string;
+  ogp?: {
+    url: string;
+    width?: number;
+    height?: number;
+  };
 }
 
 function isPublic(record: BlogEntryRecord): boolean {
@@ -34,6 +44,7 @@ function toEntry(uri: string, value: BlogEntryRecord): BlogEntry {
     title: value.title?.trim() || "Untitled",
     content: value.content ?? "",
     createdAt: value.createdAt,
+    ogp: value.ogp,
   };
 }
 
@@ -74,6 +85,11 @@ export async function createBlogEntry(
     isDraft?: boolean;
     theme?: string;
     blobs?: WhiteWindBlobMetadata[];
+    ogp?: {
+      url: string;
+      width?: number;
+      height?: number;
+    };
   },
 ): Promise<{ rkey: string }> {
   const res = await agent.com.atproto.repo.createRecord({
@@ -89,6 +105,7 @@ export async function createBlogEntry(
       ...(input.isDraft ? { isDraft: true } : {}),
       ...(input.theme ? { theme: input.theme } : {}),
       ...(input.blobs?.length ? { blobs: input.blobs } : {}),
+      ...(input.ogp ? { ogp: input.ogp } : {}),
     } satisfies BlogEntryRecord,
   });
   return { rkey: rkeyFromUri(res.data.uri) };

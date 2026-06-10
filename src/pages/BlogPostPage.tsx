@@ -37,6 +37,16 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
         <ChevronLeft size={16} /> All blogs
       </Link>
 
+      {entry.ogp?.url && (
+        <div className="mb-8 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
+          <img
+            src={entry.ogp.url}
+            alt={entry.title}
+            className="w-full object-cover max-h-[380px]"
+          />
+        </div>
+      )}
+
       <h1 className="text-3xl font-semibold text-white">{entry.title}</h1>
       <div className="mt-2 mb-8 flex items-center gap-3 text-sm text-zinc-500">
         {entry.createdAt && (
