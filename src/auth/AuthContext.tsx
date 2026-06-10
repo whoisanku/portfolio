@@ -123,7 +123,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setModalOpen(false);
   }, []);
 
-  const [editingBlog, setEditingBlog] = useState<BlogEntry | null>(null);
+  const [editingBlog, setEditingBlogState] = useState<BlogEntry | null>(null);
+
+  // Selecting a blog to edit always brings up the admin modal.
+  const setEditingBlog = useCallback((blog: BlogEntry | null) => {
+    setEditingBlogState(blog);
+    if (blog) setModalOpen(true);
+  }, []);
 
   const openModal = useCallback(() => setModalOpen(true), []);
   const closeModal = useCallback(() => setModalOpen(false), []);

@@ -1,12 +1,12 @@
-import { ChevronLeft, ExternalLink, Trash2, Edit3 } from "lucide-react";
+import { ChevronLeft, Edit3, ExternalLink, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 import ErrorMessage from "../components/ErrorMessage";
 import Loader from "../components/Loader";
-import { getBlogEntry, whtwndUrl, deleteBlogEntry, type BlogEntry } from "../lib/blog";
+import { deleteBlogEntry, getBlogEntry, whtwndUrl, type BlogEntry } from "../lib/blog";
 import { OWNER_HANDLE } from "../lib/config";
-import { useAuth } from "../auth/AuthContext";
 
 const BlogPostView = ({ rkey }: { rkey: string }) => {
   const [entry, setEntry] = useState<BlogEntry | null>(null);
@@ -49,27 +49,29 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
   if (!entry) return <Loader label="Loading post…" />;
 
   return (
-    <article className="mx-auto max-w-2xl">
+    <article>
       <Link
         to="/blog"
-        className="mb-6 inline-flex items-center gap-1 text-sm text-zinc-400 transition-colors hover:text-blue-400"
+        className="mb-8 inline-flex items-center gap-1 font-mono text-[12.5px] text-ink-3 transition-colors hover:text-accent"
       >
-        <ChevronLeft size={16} /> All blogs
+        <ChevronLeft size={14} /> All blogs
       </Link>
 
       {entry.ogp?.url && (
-        <div className="mb-8 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
+        <div className="mb-9 overflow-hidden rounded-[10px] border border-line">
           <img
             src={entry.ogp.url}
             alt={entry.title}
-            className="w-full object-cover max-h-[380px]"
+            className="max-h-[380px] w-full object-cover"
           />
         </div>
       )}
 
-      <h1 className="text-3xl font-semibold text-white">{entry.title}</h1>
-      <div className="mt-2 mb-8 flex items-center justify-between gap-3 text-sm text-zinc-500">
-        <div className="flex items-center gap-3 flex-wrap">
+      <h1 className="font-display text-[34px] leading-[1.15] font-medium tracking-[-0.01em] text-balance text-ink sm:text-[40px]">
+        {entry.title}
+      </h1>
+      <div className="mt-3 mb-10 flex items-center justify-between gap-3 font-mono text-[12px] text-ink-3">
+        <div className="flex flex-wrap items-center gap-4">
           {entry.createdAt && (
             <time>
               {new Date(entry.createdAt).toLocaleDateString("en-US", {
@@ -83,17 +85,17 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
             href={whtwndUrl(OWNER_HANDLE, entry.rkey)}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 transition-colors hover:text-blue-400"
+            className="inline-flex items-center gap-1 transition-colors hover:text-accent"
           >
-            WhiteWind <ExternalLink size={12} />
+            WhiteWind <ExternalLink size={11} />
           </a>
           {entry.isDraft && (
-            <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-400 border border-amber-500/20">
+            <span className="rounded-full border border-accent/30 px-2 py-0.5 text-[9px] tracking-[0.14em] text-accent uppercase">
               Draft
             </span>
           )}
           {entry.visibility && entry.visibility !== "public" && (
-            <span className="rounded-full bg-zinc-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 border border-zinc-500/20">
+            <span className="rounded-full border border-line px-2 py-0.5 text-[9px] tracking-[0.14em] text-ink-3 uppercase">
               {entry.visibility}
             </span>
           )}
@@ -103,7 +105,7 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
             <button
               type="button"
               onClick={() => setEditingBlog(entry)}
-              className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-blue-400 transition-colors"
+              className="inline-flex items-center gap-1 text-xs text-ink-3 transition-colors hover:text-accent"
               title="Edit post"
             >
               <Edit3 size={12} />
@@ -113,7 +115,7 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
               type="button"
               onClick={handleDelete}
               disabled={isDeleting}
-              className="inline-flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-400 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1 text-xs text-red-500 transition-colors hover:text-red-400 disabled:opacity-50"
               title="Delete post"
             >
               <Trash2 size={12} />
@@ -123,7 +125,7 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
         )}
       </div>
 
-      <div className="prose prose-invert prose-zinc max-w-none prose-a:text-blue-400 prose-img:rounded-lg">
+      <div className="prose blog-prose max-w-none prose-img:rounded-lg prose-img:border prose-img:border-line">
         <Markdown>{entry.content}</Markdown>
       </div>
     </article>

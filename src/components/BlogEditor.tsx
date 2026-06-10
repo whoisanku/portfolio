@@ -320,7 +320,7 @@ function markdownToHtml(markdown: string): string {
               checklistAttr = ' data-checklist="true"';
               markerPrefix = isChecked ? "☑ " : "☐ ";
             } else if (isUnordered) {
-              content = content.replace(/^[-\*]\s?/, "");
+              content = content.replace(/^[-*]\s?/, "");
             } else if (isOrdered) {
               content = content.replace(/^\d+\.\s?/, "");
             }
@@ -345,14 +345,22 @@ const BlogEditor = ({
   isFullscreen,
 }: BlogEditorProps) => {
   const { editingBlog, setEditingBlog } = useAuth();
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [visibility, setVisibility] = useState<Visibility>("public");
-  const [isDraft, setIsDraft] = useState(false);
+  // State is hydrated from the entry being edited; AdminModal remounts this
+  // component (via key) whenever the edited entry changes.
+  const [title, setTitle] = useState(() => editingBlog?.title ?? "");
+  const [content, setContent] = useState(() => editingBlog?.content ?? "");
+  const [visibility, setVisibility] = useState<Visibility>(
+    () => editingBlog?.visibility ?? "public",
+  );
+  const [isDraft, setIsDraft] = useState(() => editingBlog?.isDraft ?? false);
   const [busy, setBusy] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [wordCount, setWordCount] = useState(0);
-  const [readTime, setReadTime] = useState("1 min read");
+  const [wordCount, setWordCount] = useState(() =>
+    editingBlog ? editingBlog.content.split(/\s+/).filter(Boolean).length : 0,
+  );
+  const [readTime, setReadTime] = useState(() =>
+    editingBlog ? estimateReadTime(editingBlog.content) : "1 min read",
+  );
   const editorRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const imageBlobByUrlRef = useRef<Record<string, WhiteWindBlobMetadata>>({});
@@ -365,7 +373,15 @@ const BlogEditor = ({
     width?: number;
     height?: number;
     metadata?: WhiteWindBlobMetadata;
-  } | null>(null);
+  } | null>(() =>
+    editingBlog?.ogp
+      ? {
+          url: editingBlog.ogp.url,
+          width: editingBlog.ogp.width,
+          height: editingBlog.ogp.height,
+        }
+      : null,
+  );
   const [uploadingCover, setUploadingCover] = useState(false);
   const coverFileRef = useRef<HTMLInputElement>(null);
 
@@ -395,7 +411,9 @@ const BlogEditor = ({
         const normalized = blockVal.toLowerCase().replace(/[<>]/g, "");
         styles[normalized] = true;
       }
-    } catch {}
+    } catch {
+      /* queryCommandValue unsupported for this selection */
+    }
 
     // Custom tag styling (code, link, checklist)
     const selection = window.getSelection();
@@ -650,36 +668,14 @@ const BlogEditor = ({
     syncContentFromDom();
   };
 
+  // Mount-only DOM hydration: render the edited entry's markdown into the
+  // contentEditable. Entry switches remount this component via key.
+  const hydratedRef = useRef(false);
   useEffect(() => {
-    if (editingBlog) {
-      setTitle(editingBlog.title);
-      setVisibility(editingBlog.visibility || "public");
-      setIsDraft(editingBlog.isDraft || false);
-      if (editorRef.current) {
-        editorRef.current.innerHTML = markdownToHtml(editingBlog.content);
-      }
-      setContent(editingBlog.content);
-
-      if (editingBlog.ogp) {
-        setCoverImage({
-          url: editingBlog.ogp.url,
-          width: editingBlog.ogp.width,
-          height: editingBlog.ogp.height,
-        });
-      } else {
-        setCoverImage(null);
-      }
-
-      const metricText = editingBlog.content;
-      setWordCount(metricText.split(/\s+/).filter(Boolean).length);
-      setReadTime(estimateReadTime(metricText));
-    } else {
-      setTitle("");
-      if (editorRef.current) editorRef.current.innerHTML = "";
-      setContent("");
-      setCoverImage(null);
-      setWordCount(0);
-      setReadTime("1 min read");
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    if (editingBlog && editorRef.current) {
+      editorRef.current.innerHTML = markdownToHtml(editingBlog.content);
     }
   }, [editingBlog]);
 
@@ -794,11 +790,11 @@ const BlogEditor = ({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Title"
-        className="border-b border-zinc-800 bg-transparent px-1 py-3 text-2xl font-semibold text-white placeholder-zinc-600 outline-none"
+        className="border-b border-line bg-transparent px-1 py-3 font-display text-2xl font-medium text-ink placeholder-ink-3 outline-none"
       />
 
       {/* Cover Image Upload Area */}
-      <div className="border-b border-zinc-800 py-3 px-1">
+      <div className="border-b border-line py-3 px-1">
         {coverImage ? (
           <div className="cover-upload-preview group">
             <img src={coverImage.previewUrl || coverImage.url} alt="Cover Preview" />
@@ -818,16 +814,16 @@ const BlogEditor = ({
             className="cover-upload-zone"
           >
             {uploadingCover ? (
-              <span className="text-sm text-blue-400 animate-pulse">
+              <span className="text-sm text-accent animate-pulse">
                 Uploading cover image...
               </span>
             ) : (
               <>
-                <ImagePlus className="mb-2 text-zinc-500" size={24} />
-                <span className="text-xs text-zinc-400 font-medium">
+                <ImagePlus className="mb-2 text-ink-3" size={24} />
+                <span className="text-xs text-ink-2 font-medium">
                   Add Cover / Thumbnail Image (Optional)
                 </span>
-                <span className="text-[10px] text-zinc-600 mt-1">
+                <span className="text-[10px] text-ink-3 mt-1">
                   Drag & drop or click to upload
                 </span>
               </>
@@ -846,7 +842,7 @@ const BlogEditor = ({
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-zinc-800 py-2">
+      <div className="flex flex-wrap items-center gap-0.5 border-b border-line py-2">
         {toolbarActions.map((action) => {
           const active = isActionActive(action);
           return (
@@ -859,7 +855,7 @@ const BlogEditor = ({
               className={`rounded-md p-1.5 transition-colors border border-transparent ${
                 active
                   ? "toolbar-btn-active"
-                  : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                  : "text-ink-3 hover:bg-raise hover:text-ink"
               }`}
             >
               <action.icon size={16} />
@@ -875,7 +871,7 @@ const BlogEditor = ({
           className={`rounded-md p-1.5 transition-colors border border-transparent ${
             activeStyles["link"]
               ? "toolbar-btn-active"
-              : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+              : "text-ink-3 hover:bg-raise hover:text-ink"
           }`}
         >
           <LinkIcon size={16} />
@@ -886,7 +882,7 @@ const BlogEditor = ({
           onClick={() => fileRef.current?.click()}
           title="Upload image"
           disabled={uploadingImage || (!agent && !devMode)}
-          className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:animate-pulse disabled:text-blue-400 disabled:opacity-30"
+          className="rounded-md p-1.5 text-ink-3 transition-colors hover:bg-raise hover:text-ink disabled:animate-pulse disabled:text-accent disabled:opacity-30"
         >
           <ImagePlus size={16} />
         </button>
@@ -921,39 +917,39 @@ const BlogEditor = ({
           handleEditorKeyDown(e);
           setTimeout(updateActiveStyles, 10);
         }}
-        className={`admin-rich-editor admin-editor-textarea min-h-0 flex-1 overflow-y-auto px-3 py-4 text-zinc-200 outline-none ${
+        className={`admin-rich-editor admin-editor-textarea min-h-0 flex-1 overflow-y-auto px-3 py-4 outline-none ${
           isFullscreen ? "min-h-[60vh]" : "min-h-[340px]"
         }`}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
         <div className="flex flex-wrap items-center gap-3">
           <select
             value={visibility}
             onChange={(e) => setVisibility(e.target.value as Visibility)}
-            className="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-400 outline-none transition-colors focus:border-blue-500/60"
+            className="rounded-md border border-line bg-raise px-2 py-1 text-xs text-ink-2 outline-none transition-colors focus:border-accent"
           >
             <option value="public">Public</option>
             <option value="url">Unlisted</option>
             <option value="author">Private</option>
           </select>
 
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-500">
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-ink-3">
             <input
               type="checkbox"
               checked={isDraft}
               onChange={(e) => setIsDraft(e.target.checked)}
-              className="accent-blue-500"
+              className="accent-accent"
             />
             Draft
           </label>
 
-          <span className="text-[11px] text-zinc-600">
-            {wordCount} words - {readTime}
+          <span className="font-mono text-[11px] text-ink-3">
+            {wordCount} words · {readTime}
           </span>
 
           {uploadingImage && (
-            <span className="animate-pulse text-xs text-blue-400">
+            <span className="animate-pulse text-xs text-accent">
               Uploading image...
             </span>
           )}
@@ -968,7 +964,7 @@ const BlogEditor = ({
             !title.trim() ||
             !content.trim()
           }
-          className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-all hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-600/20 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy
             ? "Publishing..."

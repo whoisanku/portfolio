@@ -20,21 +20,21 @@ const PostCard = ({
   post: FeedPost;
   onImageClick: (src: string) => void;
 }) => (
-  <article className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-5 backdrop-blur-sm">
-    <p className="whitespace-pre-wrap break-words text-[0.95rem] leading-relaxed text-zinc-200">
+  <article className="border-b border-line py-7 first:border-t">
+    <p className="text-[15px] leading-relaxed break-words whitespace-pre-wrap text-ink">
       {post.text}
     </p>
 
     {post.images.length > 0 && (
       <div
-        className={`mt-3 grid gap-2 ${post.images.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
+        className={`mt-4 grid gap-2 ${post.images.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
       >
         {post.images.map((image) => (
           <button
             key={image.fullsize}
             type="button"
             onClick={() => onImageClick(image.fullsize)}
-            className="overflow-hidden rounded-md border border-zinc-800"
+            className="overflow-hidden rounded-lg border border-line"
           >
             <img
               src={image.thumb}
@@ -52,38 +52,38 @@ const PostCard = ({
         href={post.external.uri}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-3 block rounded-md border border-zinc-800 p-3 transition-colors hover:border-blue-500/50"
+        className="mt-4 block rounded-lg border border-line bg-raise p-3.5 transition-colors hover:border-accent"
       >
-        <span className="block truncate text-sm font-medium text-zinc-200">
+        <span className="block truncate font-display text-[15px] font-medium text-ink">
           {post.external.title || post.external.uri}
         </span>
         {post.external.description && (
-          <span className="mt-1 line-clamp-2 block text-xs text-zinc-500">
+          <span className="mt-1 line-clamp-2 block text-xs text-ink-3">
             {post.external.description}
           </span>
         )}
       </a>
     )}
 
-    <footer className="mt-4 flex items-center gap-5 text-xs text-zinc-500">
+    <footer className="mt-5 flex items-center gap-5 font-mono text-[11.5px] text-ink-3">
       <time>{formatDate(post.createdAt)}</time>
-      <span className="inline-flex items-center gap-1">
-        <Heart size={13} /> {post.likeCount}
+      <span className="inline-flex items-center gap-1.5">
+        <Heart size={12} /> {post.likeCount}
       </span>
-      <span className="inline-flex items-center gap-1">
-        <Repeat2 size={14} /> {post.repostCount}
+      <span className="inline-flex items-center gap-1.5">
+        <Repeat2 size={13} /> {post.repostCount}
       </span>
-      <span className="inline-flex items-center gap-1">
-        <MessageCircle size={13} /> {post.replyCount}
+      <span className="inline-flex items-center gap-1.5">
+        <MessageCircle size={12} /> {post.replyCount}
       </span>
       <a
         href={bskyPostUrl(OWNER_HANDLE, post.uri)}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Open on Bluesky"
-        className="ml-auto transition-colors hover:text-blue-400"
+        className="ml-auto transition-colors hover:text-accent"
       >
-        <ExternalLink size={13} />
+        <ExternalLink size={12} />
       </a>
     </footer>
   </article>
@@ -121,12 +121,14 @@ const PostsPage = () => {
   }, [loadPage]);
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <h1 className="mb-8 text-center text-2xl font-medium text-white">Posts</h1>
+    <div>
+      <div className="section-label mb-9">
+        <span>Posts</span>
+      </div>
 
       {error && <ErrorMessage message={error} />}
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col">
         {posts.map((post) => (
           <PostCard key={post.cid} post={post} onImageClick={setLightbox} />
         ))}
@@ -135,11 +137,11 @@ const PostsPage = () => {
       {loading && <Loader label="Loading posts…" />}
 
       {!loading && cursor && (
-        <div className="mt-6 flex justify-center">
+        <div className="mt-8 flex justify-center">
           <button
             type="button"
             onClick={() => loadPage(cursor)}
-            className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition-colors hover:border-blue-500/60 hover:text-blue-400"
+            className="border-b border-line pb-0.5 font-mono text-[13px] text-ink-2 transition-colors hover:border-accent hover:text-accent"
           >
             Load more
           </button>
@@ -147,14 +149,14 @@ const PostsPage = () => {
       )}
 
       {!loading && !cursor && posts.length > 0 && (
-        <p className="mt-8 text-center text-xs text-zinc-600">
+        <p className="mt-10 text-center font-mono text-[11px] text-ink-3">
           You’ve reached the end.
         </p>
       )}
 
       {lightbox && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
           onClick={() => setLightbox(null)}
         >
           <img

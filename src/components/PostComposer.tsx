@@ -127,7 +127,7 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
           onChange={(e) => setText(e.target.value)}
           placeholder="What's up?"
           rows={5}
-          className="w-full resize-none rounded-xl border border-zinc-800 bg-zinc-950/80 px-4 py-3 text-[0.95rem] leading-relaxed text-zinc-200 placeholder-zinc-600 outline-none transition-colors focus:border-blue-500/60"
+          className="w-full resize-none rounded-xl border border-line bg-raise px-4 py-3 text-[0.95rem] leading-relaxed text-ink placeholder-ink-3 outline-none transition-colors focus:border-accent"
         />
       </div>
 
@@ -139,13 +139,13 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
               <img
                 src={img.preview}
                 alt={img.alt || "Upload preview"}
-                className="h-28 w-full rounded-lg border border-zinc-800 object-cover"
+                className="h-28 w-full rounded-lg border border-line object-cover"
               />
               {/* Remove button */}
               <button
                 type="button"
                 onClick={() => removeImage(idx)}
-                className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-zinc-300 opacity-0 backdrop-blur-sm transition-opacity hover:text-red-400 group-hover:opacity-100"
+                className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white opacity-0 backdrop-blur-sm transition-opacity hover:text-red-400 group-hover:opacity-100"
               >
                 <X size={14} />
               </button>
@@ -157,8 +157,8 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
                 }
                 className={`absolute bottom-1.5 left-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm transition-colors ${
                   img.alt
-                    ? "bg-blue-600/80 text-white"
-                    : "bg-black/60 text-zinc-400 hover:text-white"
+                    ? "bg-accent/90 text-white"
+                    : "bg-black/60 text-zinc-300 hover:text-white"
                 }`}
               >
                 ALT
@@ -170,8 +170,8 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
 
       {/* Alt text editor */}
       {editingAlt !== null && images[editingAlt] && (
-        <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2">
-          <span className="shrink-0 text-xs font-medium text-zinc-400">
+        <div className="flex items-center gap-2 rounded-lg border border-line bg-raise px-3 py-2">
+          <span className="shrink-0 text-xs font-medium text-ink-2">
             ALT for image {editingAlt + 1}:
           </span>
           <input
@@ -179,12 +179,12 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
             value={images[editingAlt].alt}
             onChange={(e) => updateAlt(editingAlt, e.target.value)}
             placeholder="Describe this image for accessibility…"
-            className="flex-1 bg-transparent text-sm text-zinc-200 placeholder-zinc-600 outline-none"
+            className="flex-1 bg-transparent text-sm text-ink placeholder-ink-3 outline-none"
           />
           <button
             type="button"
             onClick={() => setEditingAlt(null)}
-            className="text-xs text-blue-500 hover:text-blue-400"
+            className="text-xs text-accent hover:opacity-80"
           >
             Done
           </button>
@@ -199,7 +199,7 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={images.length >= MAX_IMAGES}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-blue-400 disabled:cursor-not-allowed disabled:opacity-30"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-ink-2 transition-colors hover:bg-raise hover:text-accent disabled:cursor-not-allowed disabled:opacity-30"
           >
             <ImagePlus size={18} />
             <span className="hidden sm:inline">
@@ -219,12 +219,12 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
 
           {/* Character count */}
           <span
-            className={`text-xs tabular-nums ${
+            className={`font-mono text-xs tabular-nums ${
               remaining < 0
-                ? "text-red-400"
+                ? "text-red-500"
                 : remaining < 50
-                  ? "text-amber-400"
-                  : "text-zinc-600"
+                  ? "text-accent"
+                  : "text-ink-3"
             }`}
           >
             {remaining}
@@ -234,7 +234,7 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
         <button
           type="submit"
           disabled={busy || (!agent && !devMode) || !text.trim() || remaining < 0}
-          className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-all hover:bg-blue-500 hover:shadow-lg hover:shadow-blue-600/20 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy ? "Publishing…" : "Publish post"}
         </button>
