@@ -1,6 +1,6 @@
 {
   "client_id": "https://anku.vercel.app/oauth/client-metadata.json",
-  "client_name": "Ankit Bhandari — Portfolio",
+  "client_name": "Ankit Bhandari - Portfolio",
   "client_uri": "https://anku.vercel.app",
   "redirect_uris": ["https://anku.vercel.app/admin"],
   "scope": "atproto transition:generic",
@@ -10,3 +10,4 @@
   "application_type": "web",
   "dpop_bound_access_tokens": true
 }
+
