@@ -1,4 +1,4 @@
-import { ChevronLeft, ExternalLink, Trash2 } from "lucide-react";
+import { ChevronLeft, ExternalLink, Trash2, Edit3 } from "lucide-react";
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -12,7 +12,7 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
   const [entry, setEntry] = useState<BlogEntry | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { agent, status, devMode } = useAuth();
+  const { agent, status, devMode, setEditingBlog } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
   const isAdmin = status === "signed-in";
 
@@ -30,8 +30,10 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
   };
 
   useEffect(() => {
+    if (status === "loading") return;
+
     let cancelled = false;
-    getBlogEntry(rkey)
+    getBlogEntry(rkey, isAdmin)
       .then((result) => {
         if (!cancelled) setEntry(result);
       })
@@ -41,7 +43,7 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
     return () => {
       cancelled = true;
     };
-  }, [rkey]);
+  }, [rkey, status, isAdmin]);
 
   if (error) return <ErrorMessage message={error} />;
   if (!entry) return <Loader label="Loading post…" />;
@@ -67,7 +69,7 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
 
       <h1 className="text-3xl font-semibold text-white">{entry.title}</h1>
       <div className="mt-2 mb-8 flex items-center justify-between gap-3 text-sm text-zinc-500">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {entry.createdAt && (
             <time>
               {new Date(entry.createdAt).toLocaleDateString("en-US", {
@@ -85,18 +87,39 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
           >
             WhiteWind <ExternalLink size={12} />
           </a>
+          {entry.isDraft && (
+            <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-400 border border-amber-500/20">
+              Draft
+            </span>
+          )}
+          {entry.visibility && entry.visibility !== "public" && (
+            <span className="rounded-full bg-zinc-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 border border-zinc-500/20">
+              {entry.visibility}
+            </span>
+          )}
         </div>
         {isAdmin && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="inline-flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-400 transition-colors disabled:opacity-50"
-            title="Delete post"
-          >
-            <Trash2 size={12} />
-            {isDeleting ? "Deleting..." : "Delete"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setEditingBlog(entry)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-blue-400 transition-colors"
+              title="Edit post"
+            >
+              <Edit3 size={12} />
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="inline-flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-400 transition-colors disabled:opacity-50"
+              title="Delete post"
+            >
+              <Trash2 size={12} />
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
+          </div>
         )}
       </div>
 

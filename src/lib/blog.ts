@@ -26,6 +26,8 @@ export interface BlogEntry {
   title: string;
   content: string;
   createdAt?: string;
+  isDraft?: boolean;
+  visibility?: "public" | "url" | "author";
   ogp?: {
     url: string;
     width?: number;
@@ -44,23 +46,25 @@ function toEntry(uri: string, value: BlogEntryRecord): BlogEntry {
     title: value.title?.trim() || "Untitled",
     content: value.content ?? "",
     createdAt: value.createdAt,
+    isDraft: value.isDraft,
+    visibility: value.visibility,
     ogp: value.ogp,
   };
 }
 
-export async function listBlogEntries(): Promise<BlogEntry[]> {
+export async function listBlogEntries(showAll = false): Promise<BlogEntry[]> {
   const did = await resolveHandle(OWNER_HANDLE);
   const { records } = await listRecords<BlogEntryRecord>(did, BLOG_COLLECTION);
   return records
-    .filter((r) => isPublic(r.value))
+    .filter((r) => showAll || isPublic(r.value))
     .map((r) => toEntry(r.uri, r.value))
     .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 }
 
-export async function getBlogEntry(rkey: string): Promise<BlogEntry> {
+export async function getBlogEntry(rkey: string, showAll = false): Promise<BlogEntry> {
   const did = await resolveHandle(OWNER_HANDLE);
   const record = await getRecord<BlogEntryRecord>(did, BLOG_COLLECTION, rkey);
-  if (!isPublic(record.value)) throw new Error("Post not found");
+  if (!showAll && !isPublic(record.value)) throw new Error("Post not found");
   return toEntry(record.uri, record.value);
 }
 
@@ -133,5 +137,52 @@ export async function deleteBlogEntry(
     repo: agent.assertDid,
     collection: BLOG_COLLECTION,
     rkey,
+  });
+}
+
+/** Update a WhiteWind blog entry in the signed-in user's repo. */
+export async function updateBlogEntry(
+  agent: Agent | null,
+  rkey: string,
+  input: {
+    title: string;
+    content: string;
+    visibility?: "public" | "url" | "author";
+    isDraft?: boolean;
+    theme?: string;
+    createdAt?: string;
+    blobs?: WhiteWindBlobMetadata[];
+    ogp?: {
+      url: string;
+      width?: number;
+      height?: number;
+    };
+  },
+  devMode: boolean,
+): Promise<void> {
+  if (!agent) {
+    if (devMode) {
+      // Simulate update locally/delay in dev mode
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      return;
+    }
+    throw new Error("Authentication required to update a blog post.");
+  }
+
+  await agent.com.atproto.repo.putRecord({
+    repo: agent.assertDid,
+    collection: BLOG_COLLECTION,
+    rkey,
+    record: {
+      $type: BLOG_COLLECTION,
+      title: input.title,
+      content: input.content,
+      createdAt: input.createdAt || new Date().toISOString(),
+      visibility: input.visibility ?? "public",
+      ...(input.isDraft ? { isDraft: true } : {}),
+      ...(input.theme ? { theme: input.theme } : {}),
+      ...(input.blobs?.length ? { blobs: input.blobs } : {}),
+      ...(input.ogp ? { ogp: input.ogp } : {}),
+    } satisfies BlogEntryRecord,
   });
 }

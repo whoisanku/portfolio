@@ -13,6 +13,7 @@ import {
 import { resolveHandle } from "../lib/atproto";
 import { OWNER_HANDLE } from "../lib/config";
 import { getOAuthClient } from "../lib/oauth";
+import type { BlogEntry } from "../lib/blog";
 
 export type AuthStatus = "loading" | "signed-out" | "signed-in";
 
@@ -33,6 +34,8 @@ interface AuthContextValue {
   modalOpen: boolean;
   openModal: () => void;
   closeModal: () => void;
+  editingBlog: BlogEntry | null;
+  setEditingBlog: (blog: BlogEntry | null) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -120,6 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setModalOpen(false);
   }, []);
 
+  const [editingBlog, setEditingBlog] = useState<BlogEntry | null>(null);
+
   const openModal = useCallback(() => setModalOpen(true), []);
   const closeModal = useCallback(() => setModalOpen(false), []);
 
@@ -135,6 +140,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         modalOpen,
         openModal,
         closeModal,
+        editingBlog,
+        setEditingBlog,
       }}
     >
       {children}

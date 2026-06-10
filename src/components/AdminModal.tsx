@@ -15,11 +15,16 @@ interface Published {
 }
 
 const AdminModal = () => {
-  const { agent, modalOpen, closeModal, signOut, devMode } = useAuth();
+  const { agent, modalOpen, closeModal, openModal, signOut, devMode, editingBlog, setEditingBlog } = useAuth();
   const [tab, setTab] = useState<Tab>("post");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState<Published | null>(null);
+
+  const handleClose = useCallback(() => {
+    setEditingBlog(null);
+    closeModal();
+  }, [closeModal, setEditingBlog]);
 
   // Escape key to close
   const handleKeyDown = useCallback(
@@ -28,12 +33,19 @@ const AdminModal = () => {
         if (isFullscreen) {
           setIsFullscreen(false);
         } else {
-          closeModal();
+          handleClose();
         }
       }
     },
-    [closeModal, isFullscreen],
+    [handleClose, isFullscreen],
   );
+
+  useEffect(() => {
+    if (editingBlog) {
+      setTab("blog");
+      openModal();
+    }
+  }, [editingBlog, openModal]);
 
   useEffect(() => {
     if (modalOpen) {
@@ -69,7 +81,7 @@ const AdminModal = () => {
   };
 
   const modal = (
-    <div className="admin-modal-overlay" onClick={closeModal}>
+    <div className="admin-modal-overlay" onClick={handleClose}>
       <div
         className={`admin-modal-content ${isFullscreen ? "admin-modal-fullscreen" : ""}`}
         onClick={(e) => e.stopPropagation()}
@@ -132,7 +144,7 @@ const AdminModal = () => {
             {/* Close */}
             <button
               type="button"
-              onClick={closeModal}
+              onClick={handleClose}
               className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-white"
               title="Close (Esc)"
             >
@@ -188,7 +200,7 @@ const AdminModal = () => {
                   <Link
                     to={published.internalUrl}
                     className="underline"
-                    onClick={closeModal}
+                    onClick={handleClose}
                   >
                     View on this site
                   </Link>

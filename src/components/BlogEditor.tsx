@@ -16,8 +16,9 @@ import {
   Strikethrough,
 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { createBlogEntry, whtwndUrl } from "../lib/blog";
+import { createBlogEntry, updateBlogEntry, whtwndUrl } from "../lib/blog";
 import { OWNER_HANDLE } from "../lib/config";
+import { useAuth } from "../auth/AuthContext";
 import {
   uploadImageForBlog,
   getImageDimensions,
@@ -246,6 +247,96 @@ function imageFigureHtml(url: string, previewUrl: string, alt: string): string {
   `;
 }
 
+function parseInlineMarkdown(text: string): string {
+  let html = escapeHtml(text);
+  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/_(.*?)_/g, "<em>$1</em>");
+  html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
+  html = html.replace(/~~(.*?)~~/g, "<s>$1</s>");
+  html = html.replace(/`(.*?)`/g, "<code>$1</code>");
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>');
+  return html;
+}
+
+function markdownToHtml(markdown: string): string {
+  if (!markdown) return "<p><br></p>";
+  const normalized = markdown.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n");
+  const blocks = normalized.split("\n\n");
+
+  return blocks
+    .map((block) => {
+      block = block.trim();
+      if (!block) return "";
+
+      if (block.startsWith("```")) {
+        const lines = block.split("\n");
+        const codeLines = lines.slice(1, lines.length - (lines[lines.length - 1] === "```" ? 1 : 0));
+        return `<pre>${escapeHtml(codeLines.join("\n"))}</pre>`;
+      }
+
+      if (block.startsWith("# ")) {
+        return `<h1>${parseInlineMarkdown(block.slice(2))}</h1>`;
+      }
+      if (block.startsWith("## ")) {
+        return `<h2>${parseInlineMarkdown(block.slice(3))}</h2>`;
+      }
+      if (block.startsWith("### ")) {
+        return `<h3>${parseInlineMarkdown(block.slice(4))}</h3>`;
+      }
+
+      if (block === "---") {
+        return "<hr>";
+      }
+
+      const imgMatch = block.match(/^!\[(.*?)\]\((.*?)\)$/);
+      if (imgMatch) {
+        const alt = imgMatch[1];
+        const url = imgMatch[2];
+        return imageFigureHtml(url, url, alt).trim();
+      }
+
+      if (block.startsWith(">")) {
+        const lines = block.split("\n").map((line) => line.replace(/^>\s?/, ""));
+        return `<blockquote>${parseInlineMarkdown(lines.join("\n"))}</blockquote>`;
+      }
+
+      const lines = block.split("\n");
+      const firstLine = lines[0].trim();
+      const isChecklist = firstLine.startsWith("- [ ] ") || firstLine.startsWith("- [x] ");
+      const isUnordered = firstLine.startsWith("- ") || firstLine.startsWith("* ");
+      const isOrdered = /^\d+\.\s/.test(firstLine);
+
+      if (isChecklist || isUnordered || isOrdered) {
+        const tag = isOrdered ? "ol" : "ul";
+        const itemsHtml = lines
+          .map((line) => {
+            let content = line.trim();
+            let checklistAttr = "";
+            let markerPrefix = "";
+
+            if (isChecklist) {
+              const isChecked = content.startsWith("- [x] ");
+              content = content.replace(/^-\s\[[ x]\]\s?/, "");
+              checklistAttr = ' data-checklist="true"';
+              markerPrefix = isChecked ? "☑ " : "☐ ";
+            } else if (isUnordered) {
+              content = content.replace(/^[-\*]\s?/, "");
+            } else if (isOrdered) {
+              content = content.replace(/^\d+\.\s?/, "");
+            }
+
+            return `<li${checklistAttr}>${markerPrefix}${parseInlineMarkdown(content)}</li>`;
+          })
+          .join("");
+        return `<${tag}>${itemsHtml}</${tag}>`;
+      }
+
+      return `<p>${parseInlineMarkdown(block)}</p>`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
 const BlogEditor = ({
   agent,
   devMode,
@@ -253,6 +344,7 @@ const BlogEditor = ({
   onError,
   isFullscreen,
 }: BlogEditorProps) => {
+  const { editingBlog, setEditingBlog } = useAuth();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [visibility, setVisibility] = useState<Visibility>("public");
@@ -558,6 +650,39 @@ const BlogEditor = ({
     syncContentFromDom();
   };
 
+  useEffect(() => {
+    if (editingBlog) {
+      setTitle(editingBlog.title);
+      setVisibility(editingBlog.visibility || "public");
+      setIsDraft(editingBlog.isDraft || false);
+      if (editorRef.current) {
+        editorRef.current.innerHTML = markdownToHtml(editingBlog.content);
+      }
+      setContent(editingBlog.content);
+
+      if (editingBlog.ogp) {
+        setCoverImage({
+          url: editingBlog.ogp.url,
+          width: editingBlog.ogp.width,
+          height: editingBlog.ogp.height,
+        });
+      } else {
+        setCoverImage(null);
+      }
+
+      const metricText = editingBlog.content;
+      setWordCount(metricText.split(/\s+/).filter(Boolean).length);
+      setReadTime(estimateReadTime(metricText));
+    } else {
+      setTitle("");
+      if (editorRef.current) editorRef.current.innerHTML = "";
+      setContent("");
+      setCoverImage(null);
+      setWordCount(0);
+      setReadTime("1 min read");
+    }
+  }, [editingBlog]);
+
   const publish = async (e: FormEvent) => {
     e.preventDefault();
     const latestContent = editorRef.current ? serializeEditorToMarkdown(editorRef.current) : content;
@@ -572,9 +697,13 @@ const BlogEditor = ({
         clearEditor();
         clearImages();
         setCoverImage(null);
+        
+        const finalRkey = editingBlog ? editingBlog.rkey : "mock-dev-rkey";
+        setEditingBlog(null);
+        
         onPublished({
-          whitewind: `https://whtwnd.com/${OWNER_HANDLE}/mock-dev-rkey`,
-          internal: `/blog/mock-dev-rkey`,
+          whitewind: `https://whtwnd.com/${OWNER_HANDLE}/${finalRkey}`,
+          internal: `/blog/${finalRkey}`,
         });
       }
       return;
@@ -591,30 +720,53 @@ const BlogEditor = ({
         blobs.push(coverImage.metadata);
       }
 
-      const { rkey } = await createBlogEntry(agent, {
-        title: title.trim(),
-        content: latestContent,
-        visibility,
-        isDraft,
-        blobs,
-        ...(coverImage
-          ? {
-              ogp: {
-                url: coverImage.url,
-                width: coverImage.width,
-                height: coverImage.height,
-              },
-            }
-          : {}),
-      });
-      setTitle("");
-      clearEditor();
-      clearImages();
-      setCoverImage(null);
-      onPublished({
-        whitewind: whtwndUrl(OWNER_HANDLE, rkey),
-        internal: `/blog/${rkey}`,
-      });
+      const ogp = coverImage
+        ? {
+            url: coverImage.url,
+            width: coverImage.width,
+            height: coverImage.height,
+          }
+        : undefined;
+
+      if (editingBlog) {
+        await updateBlogEntry(agent, editingBlog.rkey, {
+          title: title.trim(),
+          content: latestContent,
+          visibility,
+          isDraft,
+          blobs,
+          ogp,
+          createdAt: editingBlog.createdAt,
+        }, devMode);
+
+        const rkey = editingBlog.rkey;
+        setTitle("");
+        clearEditor();
+        clearImages();
+        setCoverImage(null);
+        setEditingBlog(null);
+        onPublished({
+          whitewind: whtwndUrl(OWNER_HANDLE, rkey),
+          internal: `/blog/${rkey}`,
+        });
+      } else {
+        const { rkey } = await createBlogEntry(agent, {
+          title: title.trim(),
+          content: latestContent,
+          visibility,
+          isDraft,
+          blobs,
+          ogp,
+        });
+        setTitle("");
+        clearEditor();
+        clearImages();
+        setCoverImage(null);
+        onPublished({
+          whitewind: whtwndUrl(OWNER_HANDLE, rkey),
+          internal: `/blog/${rkey}`,
+        });
+      }
     } catch (err) {
       onError(err instanceof Error ? err.message : "Failed to publish blog");
     } finally {

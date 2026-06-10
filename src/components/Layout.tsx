@@ -1,4 +1,4 @@
-import { Lock, LockOpen } from "lucide-react";
+import { Lock, LockOpen, User } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet } from "react-router-dom";
 import blueskyLogo from "../assets/bsky.svg";
@@ -22,7 +22,12 @@ const Layout = () => {
         return res.json();
       })
       .then((data: { avatar?: string }) => {
-        if (data.avatar) setAvatarUrl(data.avatar);
+        if (data.avatar) {
+          // Preload the image in browser cache so it displays instantly when dropdown is opened
+          const img = new Image();
+          img.src = data.avatar;
+          setAvatarUrl(data.avatar);
+        }
       })
       .catch((err) => {
         console.error("Error fetching avatar:", err);
@@ -116,11 +121,9 @@ const Layout = () => {
                     className="h-5 w-5 rounded-full object-cover shrink-0"
                   />
                 ) : (
-                  <img
-                    src={blueskyLogo}
-                    alt=""
-                    className="h-5 w-5 object-contain brightness-0 invert shrink-0"
-                  />
+                  <div className="h-5 w-5 rounded-full bg-zinc-800 flex items-center justify-center shrink-0">
+                    <User size={12} className="text-zinc-500" />
+                  </div>
                 )}
                 <span>{OWNER_HANDLE}</span>
               </button>
