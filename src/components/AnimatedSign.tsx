@@ -8,7 +8,7 @@ const AnimatedSign = () => {
   return (
     <svg
       className="h-auto w-full"
-      viewBox="0 10 90 40"
+      viewBox="8.0 10 90 40"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-label="anku"
@@ -21,13 +21,13 @@ const AnimatedSign = () => {
         fill="currentColor"
         initial={{ pathLength: 0, fillOpacity: 0 }}
         animate={{
-          pathLength: [0, 1, 1, 1, 0],
-          fillOpacity: [0, 0, 1, 1, 0],
+          pathLength: [0, 1, 1, 1, 0, 0],
+          fillOpacity: [0, 0, 1, 1, 0, 0],
         }}
         transition={{
-          duration: 6,
+          duration: 5,
           ease: "easeInOut",
-          times: [0, 0.4, 0.5, 0.9, 1],
+          times: [0, 0.4, 0.5, 0.75, 0.85, 1],
           repeat: Infinity,
           repeatType: "loop",
         }}

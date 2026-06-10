@@ -1,12 +1,12 @@
 import { Lock, LockOpen, User } from "lucide-react";
-import { motion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import blueskyLogo from "../assets/bsky.svg";
 import { useAuth } from "../auth/AuthContext";
 import { OWNER_HANDLE, PUBLIC_API } from "../lib/config";
 import AdminModal from "./AdminModal";
 import AnimatedSign from "./AnimatedSign";
+import { motion } from "motion/react";
 
 const navItems = [
   { to: "/", label: "work" },
@@ -14,10 +14,27 @@ const navItems = [
   { to: "/posts", label: "posts" },
 ];
 
+/** Builds a wavy SVG path string across a given pixel width */
+function buildWavyPath(width: number): string {
+  const amplitude = 2.2;
+  const period = 8;
+  const cycles = Math.max(2, Math.ceil(width / period));
+  const totalWidth = cycles * period;
+  const offsetX = (totalWidth - width) / 2;
+  let d = `M ${-offsetX} ${amplitude}`;
+  for (let i = 0; i < cycles; i++) {
+    const x1 = -offsetX + i * period + period / 4;
+    const x2 = -offsetX + i * period + (3 * period) / 4;
+    const x3 = -offsetX + (i + 1) * period;
+    d += ` C ${x1} ${-amplitude}, ${x2} ${amplitude * 3}, ${x3} ${amplitude}`;
+  }
+  return d;
+}
+
 /**
  * Editorial topbar: mono handle on the left; on the right a three-word nav
- * where the active word flips from mono into accent serif italic, with a
- * shared underline that slides between items.
+ * where the active word turns accent, with a snake-style wavy underline that
+ * glides between items (CSS transition) and continuously slithers (dashoffset flow).
  */
 const TopNav = () => {
   const { pathname } = useLocation();
@@ -25,35 +42,97 @@ const TopNav = () => {
   const isActive = (to: string) =>
     to === "/" ? pathname === "/" : pathname.startsWith(to) || (to === "/posts" && pathname === "/post");
 
+  const activeIndex = navItems.findIndex((item) => isActive(item.to));
+
+  const linkRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const navRef = useRef<HTMLElement>(null);
+
+  const [underline, setUnderline] = useState<{
+    left: number;
+    width: number;
+    path: string;
+  } | null>(null);
+
+  // One-shot "draw on" for first mount
+  const [ready, setReady] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = linkRefs.current[activeIndex];
+    const nav = navRef.current;
+    if (!el || !nav) return;
+
+    const navRect = nav.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const shrinkAmount = 10;
+    const left = elRect.left - navRect.left + shrinkAmount / 2;
+    const width = elRect.width - shrinkAmount;
+
+    setUnderline((prev) => {
+      // Rebuild path only when width actually changes (avoid thrash)
+      const path =
+        prev && Math.abs(prev.width - width) < 1 ? prev.path : buildWavyPath(width);
+      return { left, width, path };
+    });
+
+    // Mark ready after first measurement so the SVG fades in instead of popping
+    if (!ready) requestAnimationFrame(() => setReady(true));
+  }, [activeIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const SVG_H = 8;
+
   return (
-    <nav className="flex items-center gap-6" aria-label="Primary">
-      {navItems.map((item) => {
+    <nav ref={navRef} className="relative flex items-center gap-6" aria-label="Primary">
+      {navItems.map((item, i) => {
         const active = isActive(item.to);
         return (
           <NavLink
             key={item.to}
             to={item.to}
-            className="group relative pb-1 text-[13px] tracking-[0.03em] transition-colors duration-200"
+            ref={(el) => { linkRefs.current[i] = el; }}
+            className="group relative text-[15px] tracking-[0.03em]"
+            style={{ paddingBottom: 8 }}
           >
             <span
-              className={
-                active
-                  ? "font-display text-[17px] italic text-accent"
-                  : "font-mono text-ink-3 group-hover:text-ink"
-              }
+              className={`font-mono transition-colors duration-200 ${active ? "text-accent" : "text-ink-3 group-hover:text-ink"
+                }`}
             >
               {item.label}
             </span>
-            {active && (
-              <motion.span
-                layoutId="nav-underline"
-                className="absolute right-0 -bottom-px left-0 h-px bg-accent"
-                transition={{ type: "spring", stiffness: 400, damping: 34 }}
-              />
-            )}
           </NavLink>
         );
       })}
+
+      {/* Persistent snake SVG — position glides via CSS transition, stroke flows continuously */}
+      {underline && (
+        <svg
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: underline.left,
+            width: underline.width,
+            height: SVG_H,
+            overflow: "visible",
+            pointerEvents: "none",
+            opacity: ready ? 1 : 0,
+            // ← this single transition makes the snake glide from tab to tab
+            transition: "left 0.52s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease",
+          }}
+          viewBox={`0 ${-SVG_H / 2} ${underline.width} ${SVG_H}`}
+          preserveAspectRatio="none"
+        >
+          <path
+            d={underline.path}
+            fill="none"
+            stroke="var(--color-accent, #e8613a)"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+
+
     </nav>
   );
 };
@@ -91,13 +170,13 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
       <button
         type="button"
         onClick={handleLockClick}
-        className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors duration-200 ${isSignedIn
-          ? "border-accent text-accent"
-          : "border-line text-ink-3 hover:border-accent hover:text-accent"
+        className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 hover:bg-raise -translate-y-1 ${isSignedIn
+          ? "text-accent"
+          : "text-ink-3 hover:text-accent"
           }`}
         aria-label={isSignedIn ? "Open admin panel" : "Admin sign in"}
       >
-        {isSignedIn ? <LockOpen size={13} /> : <Lock size={13} />}
+        {isSignedIn ? <LockOpen size={15} /> : <Lock size={15} />}
       </button>
 
       {dropdownOpen && !isSignedIn && (
@@ -189,7 +268,7 @@ const Layout = () => {
             )}
           </Link>
         ) : (
-          <div />
+          <div className="h-9 w-9" />
         )}
         <div className="flex items-center gap-5">
           <TopNav />
@@ -201,11 +280,11 @@ const Layout = () => {
         <Outlet context={{ avatarUrl }} />
       </main>
 
-      <footer className="mt-28 flex flex-col gap-2.5">
+      <footer className="mt-28 flex flex-col gap-1">
         <div className="w-28 text-accent">
           <AnimatedSign />
         </div>
-        <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-ink-2">i love product designing &amp; ai.</p>
           <div className="flex items-center gap-4 text-ink-3">
             <a
