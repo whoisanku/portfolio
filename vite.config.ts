@@ -1,9 +1,8 @@
-/* eslint-disable import/no-default-export */
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import { nodePolyfills } from "vite-plugin-node-polyfills";
 
-// https://vitejs.dev/config/
+// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), nodePolyfills({ protocolImports: true })],
+  plugins: [react(), tailwindcss()],
 });

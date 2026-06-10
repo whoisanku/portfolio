@@ -1,30 +1,59 @@
-# React + TypeScript + Vite
+# Portfolio — anku.bsky.social
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Personal portfolio built on React 19 + Vite + Tailwind CSS 4, fully powered by
+[AT Protocol](https://atproto.com/). No backend, no database — the Bluesky
+account **is** the CMS.
 
-Currently, two official plugins are available:
+## How content works
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+| Section | Source |
+| ------- | ------ |
+| Posts (`/posts`) | `app.bsky.feed.getAuthorFeed` from the public AppView |
+| Blogs (`/blog`) | [WhiteWind](https://whtwnd.com) `com.whtwnd.blog.entry` records read straight from the PDS (markdown) |
+| Admin (`/admin`) | atproto **OAuth** sign-in (owner only) to publish posts & blog entries |
 
-## Expanding the ESLint configuration
+Blog entries written from `/admin` are standard WhiteWind records, so they are
+also readable/editable on whtwnd.com with the same account.
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+## Development
 
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+```bash
+npm install
+npm run dev      # http://localhost:5173 (OAuth uses the loopback client, no setup needed)
+npm run build    # type-check + production build
+npm run lint
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+> OAuth note (dev): atproto loopback clients only work on IP origins, so the
+> library redirects `localhost` → `127.0.0.1` when you start a sign-in. That's
+> expected.
+
+## Deploying
+
+1. **OAuth client metadata** — edit
+   [`public/oauth/client-metadata.json`](public/oauth/client-metadata.json) and
+   replace every URL with your deployed origin. `client_id` must be exactly
+   `https://<your-domain>/oauth/client-metadata.json` and `redirect_uris` must
+   contain `https://<your-domain>/admin`.
+2. **SPA fallback** — the router uses history URLs (`/blog/...`, `/admin`), so
+   the host must rewrite unknown paths to `index.html` (Vercel/Netlify do this
+   automatically for SPAs; GitHub Pages needs a 404.html fallback).
+
+## Configuration
+
+Everything is keyed off [`src/lib/config.ts`](src/lib/config.ts):
+
+- `OWNER_HANDLE` — the Bluesky account that owns the site (feed, blogs, admin).
+- `BLOG_COLLECTION` — blog record collection (WhiteWind by default; swap for
+  `site.standard.document` if you migrate to standard.site later).
+
+## Structure
+
+```
+src/
+  auth/        AuthContext — OAuth session, owner check, sign in/out
+  components/  Layout, OrbitNav, BackgroundDots, AnimatedSign, Loader…
+  data/        projects + press mentions
+  lib/         config, atproto helpers, blog (WhiteWind), feed, oauth client
+  pages/       Home, BlogList, BlogPost, Posts, Admin
+```

@@ -1,107 +1,31 @@
-import React, { useState } from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import BackgroundComets from "./Components/BackgroundComets";
-import BackgroundDots from "./Components/BackgroundDots";
-import Profile from "./Components/Profile";
-import Blog from "./Pages/Blog";
-import BlogPost from "./Pages/BlogPost";
-import Home from "./Pages/Home";
-import AnimatedSign from "./Components/AnimatedSign";
-import { Providers } from "./Providers";
-import Publications from "./Pages/Post";
-import blueskyLogo from "./assets/bsky.svg";
+import { Suspense, lazy } from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import Layout from "./components/Layout";
+import Loader from "./components/Loader";
+import BlogListPage from "./pages/BlogListPage";
+import HomePage from "./pages/HomePage";
+import PostsPage from "./pages/PostsPage";
 
-interface PostExtraData {
-  BlogDeltaRtfFormat: string;
-  BlogTitleSlug: string;
-  Title: string;
-}
+// Code-split the heavy bits: markdown rendering and the OAuth/admin stack.
+const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
 
-interface Post {
-  PostHashHex: string;
-  ImageURLs: string;
-  Body: string;
-  TimestampNanos: number;
-  PostExtraData?: PostExtraData;
-  title?: string;
-  content?: string;
-}
-
-const App: React.FC = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
-  return (
-    <Providers>
-      <Router>
-        <div className="App relative min-h-screen w-screen bg-black overflow-x-hidden">
-          <div className="absolute inset-0 z-0">
-            <BackgroundDots />
-            <BackgroundComets />
-          </div>
-          <div className="relative z-10 flex flex-col items-center">
-            <Profile />
-            <div className="w-full max-w-4xl px-4">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route
-                  path="/blog"
-                  element={
-                    <div>
-                      <div className="text-white text-2xl flex justify-center mb-6">
-                        Blogs
-                      </div>
-                      <Blog posts={posts} setPosts={setPosts} />
-                    </div>
-                  }
-                />
-                <Route
-                  path="/blog/:postId"
-                  element={<BlogPost posts={posts} />}
-                />
-                <Route
-                  path="/post"
-                  element={
-                    <div>
-                      {" "}
-                      <div className="text-white text-2xl flex justify-center mb-6">
-                        Posts
-                      </div>
-                      <Publications handle="anku.bsky.social" />
-                    </div>
-                  }
-                />
-              </Routes>
-            </div>
-            {/* <Chatbox /> */}
-            {/* Combined AnimatedSign and text with minimal spacing */}
-            <div className="flex flex-col items-center pb-7">
-              <div className="w-48">
-                <AnimatedSign />
-              </div>
-              <div className="flex items-center flex-col">
-                <p className="text-white text-xl -mt-6">
-                  I love product designing & AI!
-                </p>
-                <div className="text-white text-xl mt-2 flex items-center gap-4">
-                  <a
-                    href="https://bsky.app/profile/anku.bsky.social"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center"
-                  >
-                    <img
-                      src={blueskyLogo}
-                      alt="Bluesky"
-                      className="w-6.5 h-6 hover:opacity-100 transition-opacity"
-                    />
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Router>
-    </Providers>
-  );
-};
+const App = () => (
+  <BrowserRouter>
+    <Suspense fallback={<Loader />}>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/blog" element={<BlogListPage />} />
+          <Route path="/blog/:rkey" element={<BlogPostPage />} />
+          <Route path="/posts" element={<PostsPage />} />
+          {/* legacy path */}
+          <Route path="/post" element={<PostsPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+        </Route>
+      </Routes>
+    </Suspense>
+  </BrowserRouter>
+);
 
 export default App;
