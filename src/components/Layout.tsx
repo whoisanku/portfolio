@@ -1,4 +1,4 @@
-import { Lock, LockOpen, User } from "lucide-react";
+import { Lock, LockOpen, LogOut, User } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import blueskyLogo from "../assets/bsky.svg";
@@ -138,18 +138,14 @@ const TopNav = () => {
 };
 
 const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
-  const { status, error: authError, signIn, openModal } = useAuth();
+  const { status, error: authError, signIn, signOut, openModal } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const isSignedIn = status === "signed-in";
 
   const handleLockClick = () => {
-    if (isSignedIn) {
-      openModal();
-    } else {
-      setDropdownOpen((prev) => !prev);
-    }
+    setDropdownOpen((prev) => !prev);
   };
 
   const handleOutsideClick = useCallback((e: MouseEvent) => {
@@ -178,6 +174,63 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
       >
         {isSignedIn ? <LockOpen size={15} /> : <Lock size={15} />}
       </button>
+
+      {/* Signed in: quiet menu — identity, write, sign out */}
+      {dropdownOpen && isSignedIn && (
+        <div className="admin-dropdown" style={{ width: 208 }}>
+          <div className="admin-dropdown-arrow" />
+          <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={OWNER_HANDLE}
+                className="h-6 w-6 shrink-0 rounded-full border border-line object-cover"
+              />
+            ) : (
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-raise">
+                <User size={12} className="text-ink-3" />
+              </span>
+            )}
+            <span className="truncate font-mono text-[11px] text-ink-3">
+              @{OWNER_HANDLE}
+            </span>
+          </div>
+          <div className="flex flex-col p-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setDropdownOpen(false);
+                openModal();
+              }}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left font-mono text-[12px] text-ink-3 transition-colors hover:bg-raise hover:text-ink"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-[13px] w-[13px]"
+              >
+                <path d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+              </svg>
+              write
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDropdownOpen(false);
+                void signOut();
+              }}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left font-mono text-[12px] text-ink-3 transition-colors hover:bg-raise hover:text-ink"
+            >
+              <LogOut size={13} /> sign out
+            </button>
+          </div>
+        </div>
+      )}
 
       {dropdownOpen && !isSignedIn && (
         <div className="admin-dropdown">
@@ -245,7 +298,7 @@ const Layout = () => {
   }, []);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[660px] flex-col px-7 pt-8 pb-24">
+    <div className="mx-auto flex min-h-screen w-full max-w-[660px] flex-col px-7 pt-8 pb-12">
       <AdminModal />
 
       <header className="mb-16 flex items-center justify-between gap-4 sm:mb-20">

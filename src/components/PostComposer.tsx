@@ -22,6 +22,53 @@ interface PostComposerProps {
   onError: (msg: string) => void;
 }
 
+/** Circular character budget — fills with accent, turns red only past the limit. */
+const CharRing = ({ used }: { used: number }) => {
+  const remaining = MAX_POST_LENGTH - used;
+  const over = remaining < 0;
+  const r = 8;
+  const c = 2 * Math.PI * r;
+  const pct = Math.min(1, used / MAX_POST_LENGTH);
+
+  return (
+    <span
+      className="flex items-center gap-1.5"
+      title={`${remaining} characters left`}
+    >
+      <svg width="20" height="20" viewBox="0 0 20 20" className="-rotate-90">
+        <circle
+          cx="10"
+          cy="10"
+          r={r}
+          fill="none"
+          stroke="var(--line)"
+          strokeWidth="2"
+        />
+        <circle
+          cx="10"
+          cy="10"
+          r={r}
+          fill="none"
+          stroke={over ? "#ef4444" : "var(--accent-ink)"}
+          strokeWidth="2"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - pct)}
+          strokeLinecap="round"
+        />
+      </svg>
+      {remaining <= 50 && (
+        <span
+          className={`font-mono text-[11px] tabular-nums ${
+            over ? "text-red-500" : "text-ink-3"
+          }`}
+        >
+          {remaining}
+        </span>
+      )}
+    </span>
+  );
+};
+
 const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProps) => {
   const [text, setText] = useState("");
   const [images, setImages] = useState<ImageAttachment[]>([]);
@@ -64,7 +111,6 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
     if (!agent) {
       if (devMode) {
         setBusy(true);
-        // Simulate a small delay
         await new Promise((resolve) => setTimeout(resolve, 800));
         setBusy(false);
         setText("");
@@ -78,7 +124,6 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
 
     setBusy(true);
     try {
-      // Upload images in parallel
       const uploaded = await Promise.all(
         images.map((img) => uploadImage(agent, img.file)),
       );
@@ -119,21 +164,19 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
   };
 
   return (
-    <form onSubmit={publish} className="flex flex-col gap-4">
-      {/* Text area */}
-      <div className="relative">
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="What's up?"
-          rows={5}
-          className="w-full resize-none rounded-xl border border-line bg-raise px-4 py-3 text-[0.95rem] leading-relaxed text-ink placeholder-ink-3 outline-none transition-colors focus:border-accent"
-        />
-      </div>
+    <form onSubmit={publish} className="flex min-h-0 flex-1 flex-col">
+      {/* Writing surface — bare paper, no box */}
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="What's up?"
+        autoFocus
+        className="min-h-[160px] w-full flex-1 resize-none bg-transparent px-1 py-2 text-[16px] leading-relaxed text-ink placeholder-ink-3 outline-none"
+      />
 
       {/* Image previews */}
       {images.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {images.map((img, idx) => (
             <div key={img.preview} className="group relative">
               <img
@@ -141,27 +184,24 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
                 alt={img.alt || "Upload preview"}
                 className="h-28 w-full rounded-lg border border-line object-cover"
               />
-              {/* Remove button */}
               <button
                 type="button"
                 onClick={() => removeImage(idx)}
-                className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white opacity-0 backdrop-blur-sm transition-opacity hover:text-red-400 group-hover:opacity-100"
+                aria-label="Remove image"
+                className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
               >
                 <X size={14} />
               </button>
-              {/* ALT badge */}
               <button
                 type="button"
-                onClick={() =>
-                  setEditingAlt(editingAlt === idx ? null : idx)
-                }
-                className={`absolute bottom-1.5 left-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm transition-colors ${
+                onClick={() => setEditingAlt(editingAlt === idx ? null : idx)}
+                className={`absolute bottom-1.5 left-1.5 rounded px-1.5 py-0.5 font-mono text-[10px] tracking-wider uppercase backdrop-blur-sm transition-colors ${
                   img.alt
                     ? "bg-accent/90 text-white"
                     : "bg-black/60 text-zinc-300 hover:text-white"
                 }`}
               >
-                ALT
+                alt
               </button>
             </div>
           ))}
@@ -170,74 +210,58 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
 
       {/* Alt text editor */}
       {editingAlt !== null && images[editingAlt] && (
-        <div className="flex items-center gap-2 rounded-lg border border-line bg-raise px-3 py-2">
-          <span className="shrink-0 text-xs font-medium text-ink-2">
-            ALT for image {editingAlt + 1}:
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-line bg-raise px-3 py-2">
+          <span className="shrink-0 font-mono text-[11px] text-ink-2">
+            alt · image {editingAlt + 1}
           </span>
           <input
             type="text"
             value={images[editingAlt].alt}
             onChange={(e) => updateAlt(editingAlt, e.target.value)}
             placeholder="Describe this image for accessibility…"
-            className="flex-1 bg-transparent text-sm text-ink placeholder-ink-3 outline-none"
+            autoFocus
+            className="min-w-0 flex-1 bg-transparent text-sm text-ink placeholder-ink-3 outline-none"
           />
           <button
             type="button"
             onClick={() => setEditingAlt(null)}
-            className="text-xs text-accent hover:opacity-80"
+            className="shrink-0 font-mono text-[11px] text-accent hover:opacity-80"
           >
-            Done
+            done
           </button>
         </div>
       )}
 
-      {/* Toolbar & publish */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {/* Image upload button */}
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={images.length >= MAX_IMAGES}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-ink-2 transition-colors hover:bg-raise hover:text-accent disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            <ImagePlus size={18} />
-            <span className="hidden sm:inline">
-              {images.length > 0
-                ? `${images.length}/${MAX_IMAGES}`
-                : "Media"}
-            </span>
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            multiple
-            className="hidden"
-            onChange={(e) => addImages(e.target.files)}
-          />
-
-          {/* Character count */}
-          <span
-            className={`font-mono text-xs tabular-nums ${
-              remaining < 0
-                ? "text-red-500"
-                : remaining < 50
-                  ? "text-accent"
-                  : "text-ink-3"
-            }`}
-          >
-            {remaining}
-          </span>
-        </div>
-
+      {/* Footer */}
+      <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
         <button
-          type="submit"
-          disabled={busy || (!agent && !devMode) || !text.trim() || remaining < 0}
-          className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={images.length >= MAX_IMAGES}
+          className="flex items-center gap-1.5 py-1 font-mono text-[11.5px] text-ink-3 transition-colors hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {busy ? "Publishing…" : "Publish post"}
+          <ImagePlus size={13} />
+          {images.length > 0 ? `media ${images.length}/${MAX_IMAGES}` : "media"}
         </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          multiple
+          className="hidden"
+          onChange={(e) => addImages(e.target.files)}
+        />
+
+        <div className="flex items-center gap-4">
+          <CharRing used={text.length} />
+          <button
+            type="submit"
+            disabled={busy || (!agent && !devMode) || !text.trim() || remaining < 0}
+            className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {busy ? "Publishing…" : "Publish"}
+          </button>
+        </div>
       </div>
     </form>
   );

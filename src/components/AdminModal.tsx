@@ -1,4 +1,4 @@
-import { LogOut, Maximize2, Minimize2, X } from "lucide-react";
+import { Maximize2, Minimize2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
@@ -15,7 +15,7 @@ interface Published {
 }
 
 const AdminModal = () => {
-  const { agent, modalOpen, closeModal, signOut, devMode, editingBlog, setEditingBlog } = useAuth();
+  const { agent, modalOpen, closeModal, devMode, editingBlog, setEditingBlog } = useAuth();
   const [selectedTab, setSelectedTab] = useState<Tab>("post");
   // Editing a blog always forces the blog tab (modal opening is handled by setEditingBlog).
   const tab: Tab = editingBlog ? "blog" : selectedTab;
@@ -76,17 +76,21 @@ const AdminModal = () => {
   };
 
   const modal = (
-    <div className="admin-modal-overlay" onClick={handleClose}>
+    <div
+      className={`admin-modal-overlay ${isFullscreen ? "is-fullscreen" : ""}`}
+      onClick={handleClose}
+    >
       <div
         className={`admin-modal-content ${isFullscreen ? "admin-modal-fullscreen" : ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <header className="flex items-center justify-between border-b border-line px-5 py-2.5">
-          <div className="flex items-center gap-3">
-            {/* Tab switcher */}
-            <div className="flex gap-1 rounded-lg border border-line p-0.5 bg-raise">
-              {(["post", "blog"] as const).map((t) => (
+          <div className="flex items-center gap-5">
+            {/* Tabs — same editorial language as the site nav */}
+            {(["post", "blog"] as const).map((t) => {
+              const active = tab === t;
+              return (
                 <button
                   key={t}
                   type="button"
@@ -96,16 +100,23 @@ const AdminModal = () => {
                     setError(null);
                     setPublished(null);
                   }}
-                  className={`rounded-md px-3.5 py-1 text-xs font-medium capitalize transition-all ${
-                    tab === t
-                      ? "bg-paper text-accent shadow-sm"
-                      : "text-ink-3 hover:text-ink"
-                  }`}
+                  className="group relative pb-0.5"
                 >
-                  {t}
+                  <span
+                    className={
+                      active
+                        ? "font-display text-[16px] italic text-accent"
+                        : "font-mono text-[12.5px] text-ink-3 transition-colors group-hover:text-ink"
+                    }
+                  >
+                    {t}
+                  </span>
+                  {active && (
+                    <span className="absolute right-0 -bottom-px left-0 h-px bg-accent" />
+                  )}
                 </button>
-              ))}
-            </div>
+              );
+            })}
             {devMode && (
               <span className="rounded-md border border-accent/30 px-2 py-0.5 font-mono text-[10px] tracking-[0.14em] text-accent uppercase">
                 Dev Mode
@@ -113,16 +124,6 @@ const AdminModal = () => {
             )}
           </div>
           <div className="flex items-center gap-1">
-            {/* Sign out */}
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-ink-3 transition-colors hover:bg-raise hover:text-red-500"
-              title="Sign out"
-            >
-              <LogOut size={14} /> Sign out
-            </button>
-
             {/* Fullscreen toggle */}
             <button
               type="button"
@@ -151,8 +152,9 @@ const AdminModal = () => {
 
 
 
-        {/* Content area */}
-        <div className="flex-1 overflow-y-auto px-5 py-5">
+        {/* Content area — centered writing column, wider gutters in fullscreen */}
+        <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto py-5 ${isFullscreen ? "px-8" : "px-6"}`}>
+          <div className={`flex min-h-0 w-full flex-1 flex-col ${isFullscreen ? "mx-auto max-w-3xl" : ""}`}>
           {tab === "post" ? (
             <PostComposer
               agent={agent}
@@ -167,7 +169,6 @@ const AdminModal = () => {
               devMode={devMode}
               onPublished={handleBlogPublished}
               onError={handleError}
-              isFullscreen={isFullscreen}
             />
           )}
 
@@ -205,6 +206,7 @@ const AdminModal = () => {
               )}
             </p>
           )}
+          </div>
         </div>
       </div>
     </div>

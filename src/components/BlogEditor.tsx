@@ -8,32 +8,36 @@ import {
   ImagePlus,
   Italic,
   Link as LinkIcon,
+  Link2,
   List,
   ListChecks,
   ListOrdered,
   Minus,
   Quote,
   Strikethrough,
+  Upload,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useAuth } from "../auth/AuthContext";
 import { createBlogEntry, updateBlogEntry, whtwndUrl } from "../lib/blog";
 import { OWNER_HANDLE } from "../lib/config";
-import { useAuth } from "../auth/AuthContext";
-import {
-  uploadImageForBlog,
-  getImageDimensions,
-  type WhiteWindBlobMetadata,
-} from "../lib/mediaUpload";
+import { uploadImageToGrove } from "../lib/grove";
 
 interface BlogEditorProps {
   agent: Agent | null;
   devMode: boolean;
   onPublished: (urls: { whitewind: string; internal: string }) => void;
   onError: (msg: string) => void;
-  isFullscreen: boolean;
 }
 
 type Visibility = "public" | "url" | "author";
+
+const visibilityOptions: { value: Visibility; label: string }[] = [
+  { value: "public", label: "Public" },
+  { value: "url", label: "Unlisted" },
+  { value: "author", label: "Private" },
+];
 
 type ToolbarAction =
   | {
@@ -52,19 +56,26 @@ type ToolbarAction =
       custom: "code" | "checklist" | "divider";
     };
 
-const toolbarActions: ToolbarAction[] = [
-  { icon: Heading1, label: "Heading 1", block: "h1" },
-  { icon: Heading2, label: "Heading 2", block: "h2" },
-  { icon: Heading3, label: "Heading 3", block: "h3" },
-  { icon: Bold, label: "Bold", command: "bold" },
-  { icon: Italic, label: "Italic", command: "italic" },
-  { icon: Strikethrough, label: "Strikethrough", command: "strikeThrough" },
-  { icon: Code, label: "Inline code", custom: "code" },
-  { icon: Quote, label: "Quote", block: "blockquote" },
-  { icon: List, label: "Bullet list", command: "insertUnorderedList" },
-  { icon: ListOrdered, label: "Numbered list", command: "insertOrderedList" },
-  { icon: ListChecks, label: "Checklist", custom: "checklist" },
-  { icon: Minus, label: "Divider", custom: "divider" },
+/** Toolbar actions, grouped — groups are separated by a thin rule. */
+const toolbarGroups: ToolbarAction[][] = [
+  [
+    { icon: Heading1, label: "Heading 1", block: "h1" },
+    { icon: Heading2, label: "Heading 2", block: "h2" },
+    { icon: Heading3, label: "Heading 3", block: "h3" },
+  ],
+  [
+    { icon: Bold, label: "Bold (Ctrl+B)", command: "bold" },
+    { icon: Italic, label: "Italic (Ctrl+I)", command: "italic" },
+    { icon: Strikethrough, label: "Strikethrough", command: "strikeThrough" },
+    { icon: Code, label: "Inline code", custom: "code" },
+  ],
+  [
+    { icon: Quote, label: "Quote", block: "blockquote" },
+    { icon: List, label: "Bullet list", command: "insertUnorderedList" },
+    { icon: ListOrdered, label: "Numbered list", command: "insertOrderedList" },
+    { icon: ListChecks, label: "Checklist", custom: "checklist" },
+    { icon: Minus, label: "Divider", custom: "divider" },
+  ],
 ];
 
 function estimateReadTime(text: string): string {
@@ -100,6 +111,21 @@ function textContent(node: Node): string {
   return node.textContent?.replace(/\s+/g, " ").trim() ?? "";
 }
 
+/**
+ * Wrap inline content in a markdown delimiter, moving leading/trailing
+ * whitespace outside the markers. `*italic *` is invalid CommonMark (the
+ * closing delimiter can't be preceded by a space), which is why italics
+ * written in the editor previously didn't render in the published view.
+ */
+function wrapMark(children: string, marker: string): string {
+  if (!children) return "";
+  const lead = children.match(/^\s*/)?.[0] ?? "";
+  const trail = children.match(/\s*$/)?.[0] ?? "";
+  const core = children.slice(lead.length, children.length - trail.length);
+  if (!core) return children; // whitespace-only selection
+  return `${lead}${marker}${core}${marker}${trail}`;
+}
+
 function serializeInline(node: Node): string {
   if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
   if (node.nodeType !== Node.ELEMENT_NODE) return "";
@@ -113,16 +139,17 @@ function serializeInline(node: Node): string {
       return "\n";
     case "strong":
     case "b":
-      return children ? `**${children}**` : "";
+      return wrapMark(children, "**");
     case "em":
     case "i":
-      return children ? `_${children}_` : "";
+      // Single asterisk — `_` breaks mid-word and chokes on snake_case.
+      return wrapMark(children, "*");
     case "s":
     case "strike":
     case "del":
-      return children ? `~~${children}~~` : "";
+      return wrapMark(children, "~~");
     case "code":
-      return children ? `\`${children.replaceAll("`", "\\`")}\`` : "";
+      return children.trim() ? `\`${children.trim().replaceAll("`", "\\`")}\`` : "";
     case "a": {
       const href = el.getAttribute("href") ?? "";
       return href ? `[${children || href}](${href})` : children;
@@ -146,7 +173,7 @@ function serializeList(list: HTMLElement): string {
     .map((item, index) => {
       const li = item as HTMLElement;
       const marker = li.dataset.checklist === "true" ? "- [ ] " : ordered ? `${index + 1}. ` : "- ";
-      return `${marker}${serializeInline(li).replace(/^☐\s*/, "").trim()}`;
+      return `${marker}${serializeInline(li).replace(/^[☐☑]\s*/, "").trim()}`;
     })
     .join("\n");
 }
@@ -216,7 +243,6 @@ function editorTextForMetrics(editor: HTMLElement | null): string {
   return clone.textContent ?? "";
 }
 
-// Helper to check if node tag name or ancestors match formatting selectors
 function getSelectedHtml(): string {
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) return "";
@@ -250,8 +276,8 @@ function imageFigureHtml(url: string, previewUrl: string, alt: string): string {
 function parseInlineMarkdown(text: string): string {
   let html = escapeHtml(text);
   html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/_(.*?)_/g, "<em>$1</em>");
-  html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
+  html = html.replace(/(^|[^\w\\])_([^_]+)_(?=[^\w]|$)/g, "$1<em>$2</em>");
+  html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
   html = html.replace(/~~(.*?)~~/g, "<s>$1</s>");
   html = html.replace(/`(.*?)`/g, "<code>$1</code>");
   html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>');
@@ -337,12 +363,13 @@ function markdownToHtml(markdown: string): string {
     .join("\n");
 }
 
+const isLikelyImageUrl = (value: string) => /^https?:\/\/\S+/i.test(value.trim());
+
 const BlogEditor = ({
   agent,
   devMode,
   onPublished,
   onError,
-  isFullscreen,
 }: BlogEditorProps) => {
   const { editingBlog, setEditingBlog } = useAuth();
   // State is hydrated from the entry being edited; AdminModal remounts this
@@ -363,16 +390,12 @@ const BlogEditor = ({
   );
   const editorRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const imageBlobByUrlRef = useRef<Record<string, WhiteWindBlobMetadata>>({});
-  const previewObjectUrlsRef = useRef<string[]>([]);
 
-  // Cover image states
+  // Cover image
   const [coverImage, setCoverImage] = useState<{
     url: string;
-    previewUrl?: string;
     width?: number;
     height?: number;
-    metadata?: WhiteWindBlobMetadata;
   } | null>(() =>
     editingBlog?.ogp
       ? {
@@ -383,6 +406,9 @@ const BlogEditor = ({
       : null,
   );
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverUrlInput, setCoverUrlInput] = useState("");
+  // Cover controls stay collapsed so the writing area keeps the room.
+  const [coverOpen, setCoverOpen] = useState(false);
   const coverFileRef = useRef<HTMLInputElement>(null);
 
   // Active toolbar styles
@@ -394,7 +420,6 @@ const BlogEditor = ({
 
     const styles: Record<string, boolean> = {};
 
-    // Standard commands
     const commands = ["bold", "italic", "strikeThrough", "insertUnorderedList", "insertOrderedList"] as const;
     commands.forEach((cmd) => {
       try {
@@ -404,7 +429,6 @@ const BlogEditor = ({
       }
     });
 
-    // formatBlock values (h1, h2, h3, blockquote)
     try {
       const blockVal = document.queryCommandValue("formatBlock");
       if (blockVal) {
@@ -415,7 +439,6 @@ const BlogEditor = ({
       /* queryCommandValue unsupported for this selection */
     }
 
-    // Custom tag styling (code, link, checklist)
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       let node: Node | null = selection.getRangeAt(0).startContainer;
@@ -423,18 +446,10 @@ const BlogEditor = ({
         if (node.nodeType === Node.ELEMENT_NODE) {
           const el = node as HTMLElement;
           const tag = el.tagName.toLowerCase();
-          if (tag === "code") {
-            styles["code"] = true;
-          }
-          if (tag === "a") {
-            styles["link"] = true;
-          }
-          if (tag === "blockquote") {
-            styles["blockquote"] = true;
-          }
-          if (el.dataset.checklist === "true" || (tag === "li" && el.dataset.checklist === "true")) {
-            styles["checklist"] = true;
-          }
+          if (tag === "code") styles["code"] = true;
+          if (tag === "a") styles["link"] = true;
+          if (tag === "blockquote") styles["blockquote"] = true;
+          if (el.dataset.checklist === "true") styles["checklist"] = true;
         }
         node = node.parentNode;
       }
@@ -471,22 +486,6 @@ const BlogEditor = ({
     setWordCount(0);
     setReadTime("1 min read");
   };
-
-  const registerPreviewObjectUrl = (url: string) => {
-    previewObjectUrlsRef.current.push(url);
-  };
-
-  const clearImages = () => {
-    for (const url of previewObjectUrlsRef.current) {
-      URL.revokeObjectURL(url);
-    }
-    previewObjectUrlsRef.current = [];
-    imageBlobByUrlRef.current = {};
-  };
-
-  useEffect(() => {
-    return () => clearImages();
-  }, []);
 
   const focusEditor = () => {
     const editor = editorRef.current;
@@ -538,47 +537,25 @@ const BlogEditor = ({
     setTimeout(updateActiveStyles, 10);
   };
 
-  const insertImageBlock = (url: string, previewUrl: string, alt: string) => {
+  const insertImageBlock = (url: string, alt: string) => {
     focusEditor();
-    exec("insertHTML", imageFigureHtml(url, previewUrl, alt));
+    exec("insertHTML", imageFigureHtml(url, url, alt));
     syncContentFromDom();
   };
 
+  /** Inline images upload straight to Grove — permanent URL, no PDS blobs. */
   const handleImageUpload = async (files: FileList | null) => {
     const selectedFiles = Array.from(files ?? []);
     if (selectedFiles.length === 0) return;
 
-    if (!agent) {
-      if (devMode) {
-        setUploadingImage(true);
-        try {
-          for (const file of selectedFiles) {
-            const url = URL.createObjectURL(file);
-            registerPreviewObjectUrl(url);
-            insertImageBlock(url, url, altFromFileName(file));
-          }
-        } catch (err) {
-          onError(err instanceof Error ? err.message : "Failed to read local image");
-        } finally {
-          setUploadingImage(false);
-        }
-      }
-      return;
-    }
-
     setUploadingImage(true);
     try {
       for (const file of selectedFiles) {
-        const previewUrl = URL.createObjectURL(file);
-        registerPreviewObjectUrl(previewUrl);
-        const uploaded = await uploadImageForBlog(agent, file);
-        imageBlobByUrlRef.current[uploaded.url] = uploaded.metadata;
-        insertImageBlock(uploaded.url, previewUrl, altFromFileName(file));
+        const { url } = await uploadImageToGrove(file);
+        insertImageBlock(url, altFromFileName(file));
       }
     } catch (err) {
-      onError(
-        err instanceof Error ? err.message : "Failed to upload image",
-      );
+      onError(err instanceof Error ? err.message : "Failed to upload image");
     } finally {
       setUploadingImage(false);
     }
@@ -588,41 +565,38 @@ const BlogEditor = ({
     const file = files?.[0];
     if (!file) return;
 
-    if (!agent) {
-      if (devMode) {
-        setUploadingCover(true);
-        try {
-          const url = URL.createObjectURL(file);
-          registerPreviewObjectUrl(url);
-          const dims = await getImageDimensions(file).catch(() => ({ width: 1200, height: 630 }));
-          setCoverImage({ url, previewUrl: url, ...dims });
-        } catch (err) {
-          onError(err instanceof Error ? err.message : "Failed to read local cover image");
-        } finally {
-          setUploadingCover(false);
-        }
-      }
-      return;
-    }
-
     setUploadingCover(true);
     try {
-      const localPreviewUrl = URL.createObjectURL(file);
-      registerPreviewObjectUrl(localPreviewUrl);
-      const uploaded = await uploadImageForBlog(agent, file);
-      const dims = await getImageDimensions(file).catch(() => ({ width: 1200, height: 630 }));
-      setCoverImage({
-        url: uploaded.url,
-        previewUrl: localPreviewUrl,
-        width: dims.width,
-        height: dims.height,
-        metadata: uploaded.metadata,
-      });
+      const uploaded = await uploadImageToGrove(file);
+      setCoverImage(uploaded);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Failed to upload cover image");
     } finally {
       setUploadingCover(false);
     }
+  };
+
+  /** Cover from a pasted URL (markdown-style) — probed for dimensions. */
+  const applyCoverUrl = () => {
+    const url = coverUrlInput.trim();
+    if (!isLikelyImageUrl(url)) {
+      onError("Enter a valid image URL (https://…)");
+      return;
+    }
+    setCoverImage({ url });
+    setCoverUrlInput("");
+    const probe = new Image();
+    probe.onload = () =>
+      setCoverImage((prev) =>
+        prev && prev.url === url
+          ? { ...prev, width: probe.naturalWidth, height: probe.naturalHeight }
+          : prev,
+      );
+    probe.onerror = () => {
+      setCoverImage((prev) => (prev && prev.url === url ? null : prev));
+      onError("That URL doesn't load as an image.");
+    };
+    probe.src = url;
   };
 
   const handleEditorClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -631,17 +605,6 @@ const BlogEditor = ({
     if (!removeButton) return;
 
     const figure = removeButton.closest<HTMLElement>("[data-blog-image='true']");
-    const img = figure?.querySelector("img");
-    const finalUrl = img?.dataset.finalSrc || img?.getAttribute("src") || "";
-    const previewUrl = img?.getAttribute("src") || "";
-
-    if (previewUrl.startsWith("blob:")) {
-      URL.revokeObjectURL(previewUrl);
-      previewObjectUrlsRef.current = previewObjectUrlsRef.current.filter(
-        (candidate) => candidate !== previewUrl,
-      );
-    }
-    if (finalUrl) delete imageBlobByUrlRef.current[finalUrl];
     figure?.remove();
     syncContentFromDom();
   };
@@ -691,12 +654,10 @@ const BlogEditor = ({
         setBusy(false);
         setTitle("");
         clearEditor();
-        clearImages();
-        setCoverImage(null);
-        
+
         const finalRkey = editingBlog ? editingBlog.rkey : "mock-dev-rkey";
         setEditingBlog(null);
-        
+
         onPublished({
           whitewind: `https://whtwnd.com/${OWNER_HANDLE}/${finalRkey}`,
           internal: `/blog/${finalRkey}`,
@@ -707,15 +668,6 @@ const BlogEditor = ({
 
     setBusy(true);
     try {
-      const imageUrls = Array.from(latestContent.matchAll(/!\[[^\]]*\]\(([^)]*)\)/g), (match) => match[1] ?? "");
-      const blobs = imageUrls
-        .map((url) => imageBlobByUrlRef.current[url])
-        .filter((blob): blob is WhiteWindBlobMetadata => Boolean(blob));
-
-      if (coverImage?.metadata) {
-        blobs.push(coverImage.metadata);
-      }
-
       const ogp = coverImage
         ? {
             url: coverImage.url,
@@ -730,7 +682,8 @@ const BlogEditor = ({
           content: latestContent,
           visibility,
           isDraft,
-          blobs,
+          // Keep legacy PDS blob refs alive for images uploaded pre-Grove.
+          blobs: editingBlog.blobs,
           ogp,
           createdAt: editingBlog.createdAt,
         }, devMode);
@@ -738,8 +691,6 @@ const BlogEditor = ({
         const rkey = editingBlog.rkey;
         setTitle("");
         clearEditor();
-        clearImages();
-        setCoverImage(null);
         setEditingBlog(null);
         onPublished({
           whitewind: whtwndUrl(OWNER_HANDLE, rkey),
@@ -751,13 +702,10 @@ const BlogEditor = ({
           content: latestContent,
           visibility,
           isDraft,
-          blobs,
           ogp,
         });
         setTitle("");
         clearEditor();
-        clearImages();
-        setCoverImage(null);
         onPublished({
           whitewind: whtwndUrl(OWNER_HANDLE, rkey),
           internal: `/blog/${rkey}`,
@@ -771,20 +719,14 @@ const BlogEditor = ({
   };
 
   const isActionActive = (action: ToolbarAction) => {
-    if ("command" in action) {
-      return activeStyles[action.command] || false;
-    }
-    if ("block" in action) {
-      return activeStyles[action.block] || false;
-    }
-    if ("custom" in action) {
-      return activeStyles[action.custom] || false;
-    }
+    if ("command" in action) return activeStyles[action.command] || false;
+    if ("block" in action) return activeStyles[action.block] || false;
+    if ("custom" in action) return activeStyles[action.custom] || false;
     return false;
   };
 
   return (
-    <form onSubmit={publish} className="flex h-full flex-col gap-0">
+    <form onSubmit={publish} className="flex min-h-0 flex-1 flex-col gap-0">
       <input
         type="text"
         value={title}
@@ -793,42 +735,94 @@ const BlogEditor = ({
         className="border-b border-line bg-transparent px-1 py-3 font-display text-2xl font-medium text-ink placeholder-ink-3 outline-none"
       />
 
-      {/* Cover Image Upload Area */}
-      <div className="border-b border-line py-3 px-1">
+      {/* Cover — one quiet row; expands only when needed so writing stays the hero */}
+      <div className="border-b border-line px-1 py-2">
         {coverImage ? (
-          <div className="cover-upload-preview group">
-            <img src={coverImage.previewUrl || coverImage.url} alt="Cover Preview" />
-            <div className="cover-upload-overlay">
-              <button
-                type="button"
-                onClick={() => setCoverImage(null)}
-                className="cover-remove-btn"
-              >
-                Remove Cover Image
-              </button>
+          <div className="flex items-center gap-3">
+            <img
+              src={coverImage.url}
+              alt="Cover"
+              className="h-10 w-16 shrink-0 rounded-md border border-line object-cover"
+            />
+            <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-ink-3">
+              {coverImage.url}
+            </span>
+            <button
+              type="button"
+              onClick={() => coverFileRef.current?.click()}
+              className="shrink-0 font-mono text-[11px] text-ink-3 transition-colors hover:text-accent"
+            >
+              replace
+            </button>
+            <button
+              type="button"
+              onClick={() => setCoverImage(null)}
+              className="shrink-0 font-mono text-[11px] text-ink-3 transition-colors hover:text-ink"
+            >
+              remove
+            </button>
+          </div>
+        ) : coverOpen ? (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => coverFileRef.current?.click()}
+              disabled={uploadingCover}
+              className="flex shrink-0 items-center gap-1.5 rounded-md border border-dashed border-line px-3 py-1.5 font-mono text-[11px] text-ink-3 transition-colors hover:border-accent hover:text-accent disabled:opacity-60"
+            >
+              {uploadingCover ? (
+                <span className="animate-pulse">uploading…</span>
+              ) : (
+                <>
+                  <Upload size={11} /> upload
+                </>
+              )}
+            </button>
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-line px-2.5">
+              <Link2 size={11} className="shrink-0 text-ink-3" />
+              <input
+                type="text"
+                value={coverUrlInput}
+                onChange={(e) => setCoverUrlInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    applyCoverUrl();
+                  }
+                }}
+                placeholder="or paste an image URL…"
+                className="min-w-0 flex-1 bg-transparent py-1.5 font-mono text-[11px] text-ink placeholder-ink-3 outline-none"
+              />
+              {coverUrlInput.trim() && (
+                <button
+                  type="button"
+                  onClick={applyCoverUrl}
+                  className="shrink-0 font-mono text-[11px] text-accent hover:opacity-80"
+                >
+                  add
+                </button>
+              )}
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setCoverOpen(false);
+                setCoverUrlInput("");
+              }}
+              aria-label="Close cover options"
+              className="shrink-0 rounded-md p-1 text-ink-3 transition-colors hover:bg-raise hover:text-ink"
+            >
+              <X size={13} />
+            </button>
           </div>
         ) : (
-          <div
-            onClick={() => coverFileRef.current?.click()}
-            className="cover-upload-zone"
+          <button
+            type="button"
+            onClick={() => setCoverOpen(true)}
+            className="flex items-center gap-1.5 py-0.5 font-mono text-[11px] text-ink-3 transition-colors hover:text-accent"
           >
-            {uploadingCover ? (
-              <span className="text-sm text-accent animate-pulse">
-                Uploading cover image...
-              </span>
-            ) : (
-              <>
-                <ImagePlus className="mb-2 text-ink-3" size={24} />
-                <span className="text-xs text-ink-2 font-medium">
-                  Add Cover / Thumbnail Image (Optional)
-                </span>
-                <span className="text-[10px] text-ink-3 mt-1">
-                  Drag & drop or click to upload
-                </span>
-              </>
-            )}
-          </div>
+            <ImagePlus size={11} /> add cover
+          </button>
         )}
         <input
           ref={coverFileRef}
@@ -842,33 +836,41 @@ const BlogEditor = ({
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-line py-2">
-        {toolbarActions.map((action) => {
-          const active = isActionActive(action);
-          return (
-            <button
-              key={action.label}
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => runToolbarAction(action)}
-              title={action.label}
-              className={`rounded-md p-1.5 transition-colors border border-transparent ${
-                active
-                  ? "toolbar-btn-active"
-                  : "text-ink-3 hover:bg-raise hover:text-ink"
-              }`}
-            >
-              <action.icon size={16} />
-            </button>
-          );
-        })}
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center border-b border-line py-2">
+        {toolbarGroups.map((group, groupIndex) => (
+          <div key={groupIndex} className="flex items-center">
+            {groupIndex > 0 && <span className="mx-1.5 h-4 w-px bg-line" />}
+            {group.map((action) => {
+              const active = isActionActive(action);
+              return (
+                <button
+                  key={action.label}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => runToolbarAction(action)}
+                  title={action.label}
+                  className={`rounded-md border border-transparent p-1.5 transition-colors ${
+                    active
+                      ? "toolbar-btn-active"
+                      : "text-ink-3 hover:bg-raise hover:text-ink"
+                  }`}
+                >
+                  <action.icon size={16} />
+                </button>
+              );
+            })}
+          </div>
+        ))}
+
+        <span className="mx-1.5 h-4 w-px bg-line" />
 
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
           onClick={insertLink}
           title="Insert link (Ctrl+K)"
-          className={`rounded-md p-1.5 transition-colors border border-transparent ${
+          className={`rounded-md border border-transparent p-1.5 transition-colors ${
             activeStyles["link"]
               ? "toolbar-btn-active"
               : "text-ink-3 hover:bg-raise hover:text-ink"
@@ -880,9 +882,9 @@ const BlogEditor = ({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          title="Upload image"
-          disabled={uploadingImage || (!agent && !devMode)}
-          className="rounded-md p-1.5 text-ink-3 transition-colors hover:bg-raise hover:text-ink disabled:animate-pulse disabled:text-accent disabled:opacity-30"
+          title="Insert image (uploads to Grove)"
+          disabled={uploadingImage}
+          className="rounded-md border border-transparent p-1.5 text-ink-3 transition-colors hover:bg-raise hover:text-ink disabled:animate-pulse disabled:text-accent"
         >
           <ImagePlus size={16} />
         </button>
@@ -899,11 +901,12 @@ const BlogEditor = ({
         />
       </div>
 
+      {/* Writing surface */}
       <div
         ref={editorRef}
         contentEditable
         suppressContentEditableWarning
-        data-placeholder="Write..."
+        data-placeholder="Write…"
         onInput={() => {
           syncContentFromDom();
           updateActiveStyles();
@@ -917,40 +920,58 @@ const BlogEditor = ({
           handleEditorKeyDown(e);
           setTimeout(updateActiveStyles, 10);
         }}
-        className={`admin-rich-editor admin-editor-textarea min-h-0 flex-1 overflow-y-auto px-3 py-4 outline-none ${
-          isFullscreen ? "min-h-[60vh]" : "min-h-[340px]"
-        }`}
+        className="admin-rich-editor admin-editor-textarea min-h-[200px] flex-1 overflow-y-auto px-3 py-4 outline-none"
       />
 
+      {/* Footer controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <select
-            value={visibility}
-            onChange={(e) => setVisibility(e.target.value as Visibility)}
-            className="rounded-md border border-line bg-raise px-2 py-1 text-xs text-ink-2 outline-none transition-colors focus:border-accent"
-          >
-            <option value="public">Public</option>
-            <option value="url">Unlisted</option>
-            <option value="author">Private</option>
-          </select>
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Visibility — segmented */}
+          <div className="flex rounded-lg border border-line p-0.5">
+            {visibilityOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setVisibility(option.value)}
+                className={`rounded-md px-2.5 py-1 font-mono text-[10px] tracking-[0.08em] uppercase transition-colors ${
+                  visibility === option.value
+                    ? "bg-raise text-accent"
+                    : "text-ink-3 hover:text-ink"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
 
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-ink-3">
-            <input
-              type="checkbox"
-              checked={isDraft}
-              onChange={(e) => setIsDraft(e.target.checked)}
-              className="accent-accent"
-            />
-            Draft
-          </label>
+          {/* Draft — toggle switch */}
+          <button
+            type="button"
+            onClick={() => setIsDraft(!isDraft)}
+            className="flex items-center gap-2"
+            aria-pressed={isDraft}
+          >
+            <span
+              className={`relative h-4 w-7 rounded-full transition-colors duration-200 ${
+                isDraft ? "bg-accent" : "bg-line"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0 h-3 w-3 rounded-full bg-paper transition-transform duration-200 ${
+                  isDraft ? "translate-x-3.5" : "translate-x-0.5"
+                }`}
+              />
+            </span>
+            <span className="font-mono text-[11px] text-ink-3">Draft</span>
+          </button>
 
           <span className="font-mono text-[11px] text-ink-3">
             {wordCount} words · {readTime}
           </span>
 
           {uploadingImage && (
-            <span className="animate-pulse text-xs text-accent">
-              Uploading image...
+            <span className="animate-pulse font-mono text-[11px] text-accent">
+              Uploading to Grove…
             </span>
           )}
         </div>
@@ -960,17 +981,14 @@ const BlogEditor = ({
           disabled={
             busy ||
             uploadingImage ||
+            uploadingCover ||
             (!agent && !devMode) ||
             !title.trim() ||
             !content.trim()
           }
           className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {busy
-            ? "Publishing..."
-            : isDraft
-              ? "Save draft"
-              : "Publish blog"}
+          {busy ? "Publishing…" : isDraft ? "Save draft" : editingBlog ? "Update blog" : "Publish blog"}
         </button>
       </div>
     </form>

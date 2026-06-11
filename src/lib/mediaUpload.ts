@@ -1,5 +1,4 @@
 import type { Agent } from "@atproto/api";
-import { getPdsEndpoint } from "./atproto";
 
 export interface UploadedImage {
   blob: unknown; // BlobRef from the PDS
@@ -8,15 +7,11 @@ export interface UploadedImage {
   mimeType: string;
 }
 
+/** Legacy WhiteWind blob metadata — kept so old entries' blob refs survive edits. */
 export interface WhiteWindBlobMetadata {
   blobref: unknown;
   name?: string;
   encoding?: string;
-}
-
-export interface UploadedBlogImage {
-  url: string;
-  metadata: WhiteWindBlobMetadata;
 }
 
 /**
@@ -117,49 +112,3 @@ export async function uploadImage(
   };
 }
 
-function cidFromBlobRef(blobRef: unknown): string {
-  const ref = (blobRef as { ref?: unknown }).ref;
-  if (typeof ref === "string") return ref;
-  if (ref && typeof ref === "object" && "$link" in ref) {
-    return String((ref as { $link: string }).$link);
-  }
-  if (ref && typeof (ref as { toString?: unknown }).toString === "function") {
-    return (ref as { toString: () => string }).toString();
-  }
-  throw new Error("Uploaded image blob did not include a CID");
-}
-
-/**
- * Upload an image and return the URL/metadata shape WhiteWind uses in entries.
- */
-export async function uploadImageForBlog(
-  agent: Agent,
-  file: File,
-): Promise<UploadedBlogImage> {
-  const compressed = await compressImage(file);
-
-  const { data: uploadRes } = await agent.uploadBlob(compressed.data, {
-    encoding: compressed.mimeType,
-  });
-
-  const did = agent.assertDid;
-  const pds = (await getPdsEndpoint(did)).replace(/\/$/, "");
-  const cid = cidFromBlobRef(uploadRes.blob);
-
-  return {
-    url: `${pds}/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`,
-    metadata: {
-      blobref: uploadRes.blob,
-      encoding: compressed.mimeType,
-      name: file.name,
-    },
-  };
-}
-
-export async function uploadImageForMarkdown(
-  agent: Agent,
-  file: File,
-): Promise<string> {
-  const { url } = await uploadImageForBlog(agent, file);
-  return url;
-}

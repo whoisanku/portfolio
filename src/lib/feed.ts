@@ -13,9 +13,17 @@ export interface FeedExternal {
   thumb?: string;
 }
 
+export interface FeedAuthor {
+  did: string;
+  handle: string;
+  displayName?: string;
+  avatar?: string;
+}
+
 export interface FeedPost {
   uri: string;
   cid: string;
+  author: FeedAuthor;
   text: string;
   createdAt: string;
   likeCount: number;
@@ -33,6 +41,12 @@ interface AuthorFeedResponse {
     post: {
       uri: string;
       cid: string;
+      author: {
+        did: string;
+        handle: string;
+        displayName?: string;
+        avatar?: string;
+      };
       record: { text?: string; createdAt?: string };
       embed?: {
         $type: string;
@@ -84,6 +98,12 @@ export async function fetchAuthorPosts(
       return {
         uri: post.uri,
         cid: post.cid,
+        author: {
+          did: post.author.did,
+          handle: post.author.handle,
+          displayName: post.author.displayName,
+          avatar: post.author.avatar,
+        },
         text: post.record.text ?? "",
         createdAt: post.record.createdAt ?? post.indexedAt,
         likeCount: post.likeCount ?? 0,

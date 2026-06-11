@@ -131,6 +131,41 @@ body {
   content: none;
 }
 
+.blog-prose a {
+  color: var(--accent-ink);
+  text-decoration: none !important;
+  position: relative;
+  display: inline-block;
+  padding-bottom: 2px !important;
+}
+
+.blog-prose a::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 2px;
+  height: 6px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' viewBox='0 0 12 6'%3E%3Cpath d='M0 4 Q 3 1, 6 4 T 12 4' fill='none' stroke='%23c05b33' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  background-repeat: repeat-x !important;
+  background-size: 12px 6px !important;
+  transition: background-image 0.2s ease;
+}
+
+.blog-prose a:hover::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' viewBox='0 0 12 6'%3E%3Cpath d='M0 4 Q 3 1, 6 4 T 12 4' fill='none' stroke='%23211d18' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .blog-prose a::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' viewBox='0 0 12 6'%3E%3Cpath d='M0 4 Q 3 1, 6 4 T 12 4' fill='none' stroke='%23e8613a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  }
+
+  .blog-prose a:hover::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' viewBox='0 0 12 6'%3E%3Cpath d='M0 4 Q 3 1, 6 4 T 12 4' fill='none' stroke='%23ede8df' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  }
+}
+
 /* ─── Section label (mono, with trailing rule) ─── */
 .section-label {
   display: flex;
@@ -207,12 +242,18 @@ body {
   padding: 16px;
 }
 
+/* Overlay loses its gutter when the studio goes fullscreen */
+.admin-modal-overlay.is-fullscreen {
+  padding: 0;
+}
+
 .admin-modal-content {
   position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 720px;
+  max-width: 760px;
+  height: min(85vh, 860px);
   max-height: 90vh;
   background: var(--bg);
   border: 1px solid var(--line);
@@ -224,9 +265,10 @@ body {
 
 .admin-modal-fullscreen {
   max-width: 100%;
-  max-height: 100%;
   width: 100%;
-  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  border: 0;
   border-radius: 0;
 }
 
@@ -341,8 +383,37 @@ body {
 
 .admin-rich-editor a {
   color: var(--accent-ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none !important;
+  position: relative;
+  display: inline-block;
+  padding-bottom: 2px !important;
+}
+
+.admin-rich-editor a::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 2px;
+  height: 6px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' viewBox='0 0 12 6'%3E%3Cpath d='M0 4 Q 3 1, 6 4 T 12 4' fill='none' stroke='%23c05b33' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  background-repeat: repeat-x !important;
+  background-size: 12px 6px !important;
+  transition: background-image 0.2s ease;
+}
+
+.admin-rich-editor a:hover::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' viewBox='0 0 12 6'%3E%3Cpath d='M0 4 Q 3 1, 6 4 T 12 4' fill='none' stroke='%23211d18' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .admin-rich-editor a::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' viewBox='0 0 12 6'%3E%3Cpath d='M0 4 Q 3 1, 6 4 T 12 4' fill='none' stroke='%23e8613a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  }
+
+  .admin-rich-editor a:hover::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='6' viewBox='0 0 12 6'%3E%3Cpath d='M0 4 Q 3 1, 6 4 T 12 4' fill='none' stroke='%23ede8df' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  }
 }
 
 .admin-rich-editor blockquote {

@@ -28,6 +28,8 @@ export interface BlogEntry {
   createdAt?: string;
   isDraft?: boolean;
   visibility?: "public" | "url" | "author";
+  /** Legacy PDS blob refs carried through edits so old images aren't GC'd. */
+  blobs?: WhiteWindBlobMetadata[];
   ogp?: {
     url: string;
     width?: number;
@@ -48,6 +50,7 @@ function toEntry(uri: string, value: BlogEntryRecord): BlogEntry {
     createdAt: value.createdAt,
     isDraft: value.isDraft,
     visibility: value.visibility,
+    blobs: value.blobs,
     ogp: value.ogp,
   };
 }
