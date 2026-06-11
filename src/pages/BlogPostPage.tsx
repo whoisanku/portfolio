@@ -1,11 +1,18 @@
-import { ChevronLeft, Edit3, ExternalLink, Trash2 } from "lucide-react";
+import { ChevronLeft, Clock3, Edit3, ExternalLink, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import Markdown from "react-markdown";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import remarkGfm from "remark-gfm";
 import { useAuth } from "../auth/AuthContext";
 import ErrorMessage from "../components/ErrorMessage";
 import Loader from "../components/Loader";
-import { deleteBlogEntry, getBlogEntry, whtwndUrl, type BlogEntry } from "../lib/blog";
+import {
+  deleteBlogEntry,
+  getBlogEntry,
+  readingTimeLabel,
+  whtwndUrl,
+  type BlogEntry,
+} from "../lib/blog";
 import { OWNER_HANDLE } from "../lib/config";
 
 const BlogPostView = ({ rkey }: { rkey: string }) => {
@@ -81,6 +88,10 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
               })}
             </time>
           )}
+          <span className="inline-flex items-center gap-1">
+            <Clock3 size={12} />
+            {readingTimeLabel(entry.content)}
+          </span>
           <a
             href={whtwndUrl(OWNER_HANDLE, entry.rkey)}
             target="_blank"
@@ -126,7 +137,7 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
       </div>
 
       <div className="prose blog-prose max-w-none prose-img:rounded-lg prose-img:border prose-img:border-line">
-        <Markdown>{entry.content}</Markdown>
+        <Markdown remarkPlugins={[remarkGfm]}>{entry.content}</Markdown>
       </div>
     </article>
   );

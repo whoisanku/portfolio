@@ -18,9 +18,17 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useAuth } from "../auth/AuthContext";
-import { createBlogEntry, updateBlogEntry, whtwndUrl } from "../lib/blog";
+import { createBlogEntry, readingTimeLabel, updateBlogEntry, whtwndUrl } from "../lib/blog";
 import { OWNER_HANDLE } from "../lib/config";
 import { uploadImageToGrove } from "../lib/grove";
 
@@ -29,6 +37,11 @@ interface BlogEditorProps {
   devMode: boolean;
   onPublished: (urls: { whitewind: string; internal: string }) => void;
   onError: (msg: string) => void;
+}
+
+export interface BlogEditorHandle {
+  hasUnsavedChanges: () => boolean;
+  saveDraft: () => Promise<void>;
 }
 
 type Visibility = "public" | "url" | "author";
@@ -78,7 +91,7 @@ const toolbarGroups: ToolbarAction[][] = [
   ],
 ];
 
-function estimateReadTime(text: string): string {
+function estimatePlainTextReadTime(text: string): string {
   const words = text.split(/\s+/).filter(Boolean).length;
   const mins = Math.max(1, Math.ceil(words / 200));
   return `${mins} min read`;
@@ -275,11 +288,14 @@ function imageFigureHtml(url: string, previewUrl: string, alt: string): string {
 
 function parseInlineMarkdown(text: string): string {
   let html = escapeHtml(text);
-  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/(^|[^\w\\])_([^_]+)_(?=[^\w]|$)/g, "$1<em>$2</em>");
-  html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-  html = html.replace(/~~(.*?)~~/g, "<s>$1</s>");
-  html = html.replace(/`(.*?)`/g, "<code>$1</code>");
+  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+  html = html.replace(/\*\*\*([\s\S]+?)\*\*\*/g, "<strong><em>$1</em></strong>");
+  html = html.replace(/___([\s\S]+?)___/g, "<strong><em>$1</em></strong>");
+  html = html.replace(/\*\*([\s\S]+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/__([\s\S]+?)__/g, "<strong>$1</strong>");
+  html = html.replace(/(^|[^\w\\])_([^_\n]+?)_(?=[^\w]|$)/g, "$1<em>$2</em>");
+  html = html.replace(/(^|[^\w\\])\*([^*\n]+?)\*(?=[^\w]|$)/g, "$1<em>$2</em>");
+  html = html.replace(/~~([\s\S]+?)~~/g, "<s>$1</s>");
   html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>');
   return html;
 }
@@ -296,7 +312,8 @@ function markdownToHtml(markdown: string): string {
 
       if (block.startsWith("```")) {
         const lines = block.split("\n");
-        const codeLines = lines.slice(1, lines.length - (lines[lines.length - 1] === "```" ? 1 : 0));
+        const lastLine = lines[lines.length - 1]?.trim();
+        const codeLines = lines.slice(1, lines.length - (lastLine === "```" ? 1 : 0));
         return `<pre>${escapeHtml(codeLines.join("\n"))}</pre>`;
       }
 
@@ -342,7 +359,7 @@ function markdownToHtml(markdown: string): string {
 
             if (isChecklist) {
               const isChecked = content.startsWith("- [x] ");
-              content = content.replace(/^-\s\[[ x]\]\s?/, "");
+              content = content.replace(/^-\s\[[ xX]\]\s?/, "");
               checklistAttr = ' data-checklist="true"';
               markerPrefix = isChecked ? "☑ " : "☐ ";
             } else if (isUnordered) {
@@ -365,12 +382,12 @@ function markdownToHtml(markdown: string): string {
 
 const isLikelyImageUrl = (value: string) => /^https?:\/\/\S+/i.test(value.trim());
 
-const BlogEditor = ({
+const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
   agent,
   devMode,
   onPublished,
   onError,
-}: BlogEditorProps) => {
+}, ref) => {
   const { editingBlog, setEditingBlog } = useAuth();
   // State is hydrated from the entry being edited; AdminModal remounts this
   // component (via key) whenever the edited entry changes.
@@ -379,17 +396,19 @@ const BlogEditor = ({
   const [visibility, setVisibility] = useState<Visibility>(
     () => editingBlog?.visibility ?? "public",
   );
-  const [isDraft, setIsDraft] = useState(() => editingBlog?.isDraft ?? false);
   const [busy, setBusy] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [wordCount, setWordCount] = useState(() =>
     editingBlog ? editingBlog.content.split(/\s+/).filter(Boolean).length : 0,
   );
   const [readTime, setReadTime] = useState(() =>
-    editingBlog ? estimateReadTime(editingBlog.content) : "1 min read",
+    editingBlog ? readingTimeLabel(editingBlog.content) : "1 min read",
   );
   const editorRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const initialTitleRef = useRef(editingBlog?.title ?? "");
+  const initialContentRef = useRef(normalizeMarkdown(editingBlog?.content ?? ""));
+  const initialCoverUrlRef = useRef(editingBlog?.ogp?.url ?? "");
 
   // Cover image
   const [coverImage, setCoverImage] = useState<{
@@ -476,7 +495,7 @@ const BlogEditor = ({
     setContent(serializeEditorToMarkdown(editor));
     const metricText = editorTextForMetrics(editor);
     setWordCount(metricText.split(/\s+/).filter(Boolean).length);
-    setReadTime(estimateReadTime(metricText));
+    setReadTime(estimatePlainTextReadTime(metricText));
   };
 
   const clearEditor = () => {
@@ -486,6 +505,96 @@ const BlogEditor = ({
     setWordCount(0);
     setReadTime("1 min read");
   };
+
+  const currentMarkdown = useCallback(
+    () => (editorRef.current ? serializeEditorToMarkdown(editorRef.current) : content),
+    [content],
+  );
+
+  const currentOgp = useCallback(
+    () =>
+      coverImage
+        ? {
+            url: coverImage.url,
+            width: coverImage.width,
+            height: coverImage.height,
+          }
+        : undefined,
+    [coverImage],
+  );
+
+  const hasUnsavedChanges = useCallback(() => {
+    const latestContent = normalizeMarkdown(currentMarkdown());
+    const latestCover = coverImage?.url ?? "";
+    return (
+      title !== initialTitleRef.current ||
+      latestContent !== initialContentRef.current ||
+      latestCover !== initialCoverUrlRef.current
+    );
+  }, [coverImage, currentMarkdown, title]);
+
+  const saveDraft = useCallback(async () => {
+    if (uploadingImage || uploadingCover) {
+      throw new Error("Wait for uploads to finish before saving a draft.");
+    }
+
+    const latestContent = currentMarkdown();
+    const hasDraftContent = title.trim() || latestContent.trim() || coverImage;
+    if (!hasDraftContent) return;
+
+    const draftTitle = title.trim() || "Untitled draft";
+    const ogp = currentOgp();
+
+    if (!agent) {
+      if (devMode) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return;
+      }
+      throw new Error("Authentication required to save a draft.");
+    }
+
+    if (editingBlog) {
+      await updateBlogEntry(
+        agent,
+        editingBlog.rkey,
+        {
+          title: draftTitle,
+          content: latestContent,
+          visibility,
+          isDraft: true,
+          blobs: editingBlog.blobs,
+          ogp,
+          createdAt: editingBlog.createdAt,
+        },
+        devMode,
+      );
+      return;
+    }
+
+    await createBlogEntry(agent, {
+      title: draftTitle,
+      content: latestContent,
+      visibility,
+      isDraft: true,
+      ogp,
+    });
+  }, [
+    agent,
+    coverImage,
+    currentMarkdown,
+    currentOgp,
+    devMode,
+    editingBlog,
+    title,
+    uploadingCover,
+    uploadingImage,
+    visibility,
+  ]);
+
+  useImperativeHandle(ref, () => ({ hasUnsavedChanges, saveDraft }), [
+    hasUnsavedChanges,
+    saveDraft,
+  ]);
 
   const focusEditor = () => {
     const editor = editorRef.current;
@@ -644,7 +753,7 @@ const BlogEditor = ({
 
   const publish = async (e: FormEvent) => {
     e.preventDefault();
-    const latestContent = editorRef.current ? serializeEditorToMarkdown(editorRef.current) : content;
+    const latestContent = currentMarkdown();
     if (!title.trim() || !latestContent.trim() || busy || uploadingImage || uploadingCover) return;
 
     if (!agent) {
@@ -668,20 +777,14 @@ const BlogEditor = ({
 
     setBusy(true);
     try {
-      const ogp = coverImage
-        ? {
-            url: coverImage.url,
-            width: coverImage.width,
-            height: coverImage.height,
-          }
-        : undefined;
+      const ogp = currentOgp();
 
       if (editingBlog) {
         await updateBlogEntry(agent, editingBlog.rkey, {
           title: title.trim(),
           content: latestContent,
           visibility,
-          isDraft,
+          isDraft: false,
           // Keep legacy PDS blob refs alive for images uploaded pre-Grove.
           blobs: editingBlog.blobs,
           ogp,
@@ -701,7 +804,7 @@ const BlogEditor = ({
           title: title.trim(),
           content: latestContent,
           visibility,
-          isDraft,
+          isDraft: false,
           ogp,
         });
         setTitle("");
@@ -944,27 +1047,6 @@ const BlogEditor = ({
             ))}
           </div>
 
-          {/* Draft — toggle switch */}
-          <button
-            type="button"
-            onClick={() => setIsDraft(!isDraft)}
-            className="flex items-center gap-2"
-            aria-pressed={isDraft}
-          >
-            <span
-              className={`relative h-4 w-7 rounded-full transition-colors duration-200 ${
-                isDraft ? "bg-accent" : "bg-line"
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 left-0 h-3 w-3 rounded-full bg-paper transition-transform duration-200 ${
-                  isDraft ? "translate-x-3.5" : "translate-x-0.5"
-                }`}
-              />
-            </span>
-            <span className="font-mono text-[11px] text-ink-3">Draft</span>
-          </button>
-
           <span className="font-mono text-[11px] text-ink-3">
             {wordCount} words · {readTime}
           </span>
@@ -988,11 +1070,11 @@ const BlogEditor = ({
           }
           className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {busy ? "Publishing…" : isDraft ? "Save draft" : editingBlog ? "Update blog" : "Publish blog"}
+          {busy ? "Publishing…" : editingBlog ? "Update blog" : "Publish blog"}
         </button>
       </div>
     </form>
   );
-};
+});
 
 export default BlogEditor;

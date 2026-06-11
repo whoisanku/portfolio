@@ -37,6 +37,8 @@ export interface BlogEntry {
   };
 }
 
+const WORDS_PER_MINUTE = 200;
+
 function isPublic(record: BlogEntryRecord): boolean {
   return !record.isDraft && (record.visibility ?? "public") === "public";
 }
@@ -71,14 +73,35 @@ export async function getBlogEntry(rkey: string, showAll = false): Promise<BlogE
   return toEntry(record.uri, record.value);
 }
 
-/** Markdown blurb → plain-ish text excerpt for list views. */
-export function excerpt(markdown: string, length = 180): string {
-  const text = markdown
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, "") // images
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // links → label
-    .replace(/[#>*`_~-]+/g, " ")
+export function markdownToPlainText(markdown: string): string {
+  return markdown
+    .replace(/\r\n/g, "\n")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^>\s?/gm, "")
+    .replace(/^\s*[-*+]\s+\[[ xX]\]\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/[*_~#>`-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+export function readingTimeMinutes(markdown: string): number {
+  const words = markdownToPlainText(markdown).split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / WORDS_PER_MINUTE));
+}
+
+export function readingTimeLabel(markdown: string): string {
+  return `${readingTimeMinutes(markdown)} min read`;
+}
+
+/** Markdown blurb -> plain-ish text excerpt for list views. */
+export function excerpt(markdown: string, length = 180): string {
+  const text = markdownToPlainText(markdown);
   return text.length > length ? `${text.slice(0, length).trimEnd()}…` : text;
 }
 
