@@ -129,8 +129,8 @@ const BlogListPage = () => {
 
   if (drafts.length === 0 && publicEntries.length === 0) {
     return (
-      <div className="rounded-[10px] border border-dashed border-line bg-raise/40 px-5 py-12 text-center">
-        <p className="font-mono text-xs text-ink-3">No blog posts yet.</p>
+      <div className="section-label">
+        <span>No blogs yet</span>
       </div>
     );
   }
