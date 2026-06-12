@@ -141,7 +141,6 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
   const { status, error: authError, signIn, signOut, openModal } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
   const isSignedIn = status === "signed-in";
 
   const handleLockClick = () => {
@@ -178,7 +177,6 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
       {/* Signed in: quiet menu — identity, write, sign out */}
       {dropdownOpen && isSignedIn && (
         <div className="admin-dropdown" style={{ width: 208 }}>
-          <div className="admin-dropdown-arrow" />
           <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
             {avatarUrl ? (
               <img
@@ -234,7 +232,6 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
 
       {dropdownOpen && !isSignedIn && (
         <div className="admin-dropdown">
-          <div className="admin-dropdown-arrow" />
           <div className="flex flex-col gap-3 p-4">
             <div className="flex items-center gap-2.5">
               <img src={blueskyLogo} alt="Bluesky" className="h-[15px] w-[15px] object-contain -translate-y-[1.5px]" />

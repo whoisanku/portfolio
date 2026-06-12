@@ -9,7 +9,7 @@ const HomePage = () => {
   const { avatarUrl } = useOutletContext<{ avatarUrl: string | null }>();
 
   return (
-    <div>
+    <div className="flex flex-col gap-28">
       {/* Hero */}
       <section className="flex flex-col gap-7">
         {avatarUrl ? (
@@ -28,18 +28,13 @@ const HomePage = () => {
           />
         )}
         <h1 className="font-display text-[40px] leading-[1.08] font-normal tracking-[-0.01em] text-balance sm:text-[49px]">
-          Ankit designs and builds at the intersection of{" "}
-          <em className="italic text-accent">product design</em>, AI, and content writing.
+          Ankit <em className="italic text-accent">loves</em> designing softwares, content writing &amp; ai.
         </h1>
-        <p className="max-w-[48ch] text-pretty text-ink-2">
-          Designer, developer, and writer. I craft intuitive user interfaces, experiment with artificial intelligence, and write articles exploring the future of software design.
-        </p>
-
       </section>
 
       {/* Selected work */}
-      <section className="mt-24">
-        <div className="section-label mb-6">
+      <section>
+        <div className="section-label mb-5">
           <span>Selected work</span>
         </div>
         <div className="flex flex-col">
@@ -68,55 +63,83 @@ const HomePage = () => {
               </div>
 
               {/* Right: screenshot area */}
-              <div className="project-row-screenshot">
-                {project.screenshot ? (
+              {project.screenshotStack ? (
+                <div className="project-stack">
                   <img
-                    src={project.screenshot}
-                    alt={`${project.title} screenshot`}
-                    className="project-row-screenshot-img"
+                    src={project.screenshotStack.back}
+                    alt={`${project.title} second screen`}
+                    className="project-stack-card project-stack-back"
+                    draggable={false}
                   />
-                ) : (
-                  <div className="project-row-screenshot-placeholder">
-                    <span>{project.title.charAt(0)}</span>
-                  </div>
-                )}
-              </div>
+                  <img
+                    src={project.screenshotStack.front}
+                    alt={`${project.title} main screen`}
+                    className="project-stack-card project-stack-front"
+                    draggable={false}
+                  />
+                </div>
+              ) : (
+                <div className="project-row-screenshot">
+                  {project.screenshot ? (
+                    <img
+                      src={project.screenshot}
+                      alt={`${project.title} screenshot`}
+                      className="project-row-screenshot-img"
+                    />
+                  ) : (
+                    <div className="project-row-screenshot-placeholder">
+                      <span>{project.title.charAt(0)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </a>
           ))}
         </div>
       </section>
 
-      {/* Press */}
-      <section className="mt-24">
-        <div className="section-label mb-5">
-          <span>Featured in</span>
+      {/* Press — logo marquee */}
+      <section>
+        <div className="mb-4 text-center font-mono text-[12px] font-medium uppercase tracking-[0.22em] text-ink-3">
+          Featured in
         </div>
-        <div className="flex flex-col">
-          {pressMentions.map((mention) => (
-            <a
-              key={mention.url}
-              href={mention.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group grid grid-cols-[1fr_auto] items-baseline gap-4 border-b border-line last:border-b-0 py-3.5 first:pt-0 sm:grid-cols-[130px_1fr_auto]"
-            >
-              <span className="text-[13px] font-semibold transition-colors duration-200 group-hover:text-accent">
-                {mention.outlet}
-              </span>
-              <span className="hidden truncate font-display text-[15px] italic text-ink-2 sm:block">
-                {mention.title}
-              </span>
-              <span className="font-mono text-[11px] tracking-[0.14em] text-ink-3 uppercase">
-                {mention.region}
-              </span>
-            </a>
-          ))}
+        <div className="press-marquee">
+          <div className="press-marquee-track">
+            {[0, 1, 2, 3].map((set) => (
+              <div
+                key={set}
+                className="press-marquee-set"
+                aria-hidden={set > 0 || undefined}
+              >
+                {pressMentions.map((mention) => (
+                  <a
+                    key={mention.url}
+                    href={mention.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`press-logo${mention.logoInvert ? " press-logo-flip" : ""}`}
+                    title={mention.title}
+                    aria-label={mention.outlet}
+                    tabIndex={set > 0 ? -1 : undefined}
+                  >
+                    <img
+                      src={mention.logo}
+                      alt={mention.outlet}
+                      style={{ height: mention.logoHeight ?? 28 }}
+                      loading="lazy"
+                      draggable={false}
+                    />
+                  </a>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Experience */}
-      <section className="mt-24">
-        <div className="section-label mb-5">
+      <section>
+        <div className="section-label section-label-strong mb-5">
           <span>Experience</span>
         </div>
         <div className="flex flex-col gap-12">
