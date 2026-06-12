@@ -1,4 +1,5 @@
 import type { Agent } from "@atproto/api";
+import { motion } from "motion/react";
 import {
   Bold,
   Code,
@@ -8,15 +9,12 @@ import {
   ImagePlus,
   Italic,
   Link as LinkIcon,
-  Link2,
   List,
   ListChecks,
   ListOrdered,
   Minus,
   Quote,
   Strikethrough,
-  Upload,
-  X,
 } from "lucide-react";
 import {
   forwardRef,
@@ -31,10 +29,12 @@ import { useAuth } from "../auth/AuthContext";
 import { createBlogEntry, readingTimeLabel, updateBlogEntry, whtwndUrl } from "../lib/blog";
 import { OWNER_HANDLE } from "../lib/config";
 import { uploadImageToGrove } from "../lib/grove";
+import PublishCoverDialog, { type CoverImage } from "./PublishCoverDialog";
 
 interface BlogEditorProps {
   agent: Agent | null;
   devMode: boolean;
+  fullscreen?: boolean;
   onPublished: (urls: { whitewind: string; internal: string }) => void;
   onError: (msg: string) => void;
 }
@@ -380,11 +380,10 @@ function markdownToHtml(markdown: string): string {
     .join("\n");
 }
 
-const isLikelyImageUrl = (value: string) => /^https?:\/\/\S+/i.test(value.trim());
-
 const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
   agent,
   devMode,
+  fullscreen = false,
   onPublished,
   onError,
 }, ref) => {
@@ -411,11 +410,7 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
   const initialCoverUrlRef = useRef(editingBlog?.ogp?.url ?? "");
 
   // Cover image
-  const [coverImage, setCoverImage] = useState<{
-    url: string;
-    width?: number;
-    height?: number;
-  } | null>(() =>
+  const [coverImage, setCoverImage] = useState<CoverImage | null>(() =>
     editingBlog?.ogp
       ? {
           url: editingBlog.ogp.url,
@@ -425,10 +420,7 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
       : null,
   );
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [coverUrlInput, setCoverUrlInput] = useState("");
-  // Cover controls stay collapsed so the writing area keeps the room.
-  const [coverOpen, setCoverOpen] = useState(false);
-  const coverFileRef = useRef<HTMLInputElement>(null);
+  const [showCoverPrompt, setShowCoverPrompt] = useState(false);
 
   // Active toolbar styles
   const [activeStyles, setActiveStyles] = useState<Record<string, boolean>>({});
@@ -502,6 +494,7 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
     if (editorRef.current) editorRef.current.innerHTML = "";
     setContent("");
     setCoverImage(null);
+    setShowCoverPrompt(false);
     setWordCount(0);
     setReadTime("1 min read");
   };
@@ -685,29 +678,6 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
     }
   };
 
-  /** Cover from a pasted URL (markdown-style) — probed for dimensions. */
-  const applyCoverUrl = () => {
-    const url = coverUrlInput.trim();
-    if (!isLikelyImageUrl(url)) {
-      onError("Enter a valid image URL (https://…)");
-      return;
-    }
-    setCoverImage({ url });
-    setCoverUrlInput("");
-    const probe = new Image();
-    probe.onload = () =>
-      setCoverImage((prev) =>
-        prev && prev.url === url
-          ? { ...prev, width: probe.naturalWidth, height: probe.naturalHeight }
-          : prev,
-      );
-    probe.onerror = () => {
-      setCoverImage((prev) => (prev && prev.url === url ? null : prev));
-      onError("That URL doesn't load as an image.");
-    };
-    probe.src = url;
-  };
-
   const handleEditorClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     const removeButton = target.closest<HTMLButtonElement>("[data-remove-image='true']");
@@ -751,10 +721,11 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
     }
   }, [editingBlog]);
 
-  const publish = async (e: FormEvent) => {
-    e.preventDefault();
+  const publishBlog = useCallback(async () => {
     const latestContent = currentMarkdown();
     if (!title.trim() || !latestContent.trim() || busy || uploadingImage || uploadingCover) return;
+
+    setShowCoverPrompt(false);
 
     if (!agent) {
       if (devMode) {
@@ -819,6 +790,27 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
     } finally {
       setBusy(false);
     }
+  }, [
+    agent,
+    busy,
+    currentMarkdown,
+    currentOgp,
+    devMode,
+    editingBlog,
+    onError,
+    onPublished,
+    setEditingBlog,
+    title,
+    uploadingCover,
+    uploadingImage,
+    visibility,
+  ]);
+
+  const publish = (e: FormEvent) => {
+    e.preventDefault();
+    const latestContent = currentMarkdown();
+    if (!title.trim() || !latestContent.trim() || busy || uploadingImage || uploadingCover) return;
+    setShowCoverPrompt(true);
   };
 
   const isActionActive = (action: ToolbarAction) => {
@@ -828,6 +820,14 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
     return false;
   };
 
+  const publishCoverLabel = coverImage
+    ? editingBlog
+      ? "Update with cover ->"
+      : "Publish with cover ->"
+    : editingBlog
+      ? "Update without a cover ->"
+      : "Share as-is - publish without a cover ->";
+
   return (
     <form onSubmit={publish} className="flex min-h-0 flex-1 flex-col gap-0">
       <input
@@ -835,115 +835,34 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Title"
-        className="border-b border-line bg-transparent px-1 py-3 font-display text-2xl font-medium text-ink placeholder-ink-3 outline-none"
+        className={
+          fullscreen
+            ? "bg-transparent px-1 pb-2 font-display text-[30px] leading-tight font-medium text-ink placeholder-ink-3 outline-none sm:text-[40px]"
+            : "bg-transparent px-1 pb-2 font-display text-[26px] leading-tight font-medium text-ink placeholder-ink-3 outline-none"
+        }
       />
 
-      {/* Cover — one quiet row; expands only when needed so writing stays the hero */}
-      <div className="border-b border-line px-1 py-2">
-        {coverImage ? (
-          <div className="flex items-center gap-3">
-            <img
-              src={coverImage.url}
-              alt="Cover"
-              className="h-10 w-16 shrink-0 rounded-md border border-line object-cover"
-            />
-            <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-ink-3">
-              {coverImage.url}
-            </span>
-            <button
-              type="button"
-              onClick={() => coverFileRef.current?.click()}
-              className="shrink-0 font-mono text-[11px] text-ink-3 transition-colors hover:text-accent"
-            >
-              replace
-            </button>
-            <button
-              type="button"
-              onClick={() => setCoverImage(null)}
-              className="shrink-0 font-mono text-[11px] text-ink-3 transition-colors hover:text-ink"
-            >
-              remove
-            </button>
-          </div>
-        ) : coverOpen ? (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => coverFileRef.current?.click()}
-              disabled={uploadingCover}
-              className="flex shrink-0 items-center gap-1.5 rounded-md border border-dashed border-line px-3 py-1.5 font-mono text-[11px] text-ink-3 transition-colors hover:border-accent hover:text-accent disabled:opacity-60"
-            >
-              {uploadingCover ? (
-                <span className="animate-pulse">uploading…</span>
-              ) : (
-                <>
-                  <Upload size={11} /> upload
-                </>
-              )}
-            </button>
-            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-line px-2.5">
-              <Link2 size={11} className="shrink-0 text-ink-3" />
-              <input
-                type="text"
-                value={coverUrlInput}
-                onChange={(e) => setCoverUrlInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    applyCoverUrl();
-                  }
-                }}
-                placeholder="or paste an image URL…"
-                className="min-w-0 flex-1 bg-transparent py-1.5 font-mono text-[11px] text-ink placeholder-ink-3 outline-none"
-              />
-              {coverUrlInput.trim() && (
-                <button
-                  type="button"
-                  onClick={applyCoverUrl}
-                  className="shrink-0 font-mono text-[11px] text-accent hover:opacity-80"
-                >
-                  add
-                </button>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setCoverOpen(false);
-                setCoverUrlInput("");
-              }}
-              aria-label="Close cover options"
-              className="shrink-0 rounded-md p-1 text-ink-3 transition-colors hover:bg-raise hover:text-ink"
-            >
-              <X size={13} />
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setCoverOpen(true)}
-            className="flex items-center gap-1.5 py-0.5 font-mono text-[11px] text-ink-3 transition-colors hover:text-accent"
-          >
-            <ImagePlus size={11} /> add cover
-          </button>
-        )}
-        <input
-          ref={coverFileRef}
-          type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
-          className="hidden"
-          onChange={(e) => {
-            void handleCoverUpload(e.target.files);
-            e.currentTarget.value = "";
-          }}
-        />
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center border-b border-line py-2">
+      {/* Toolbar — vertical rail on the left in fullscreen (top pill on small
+          screens), slim strip otherwise */}
+      <div
+        className={
+          fullscreen
+            ? "order-first mx-auto mb-8 flex max-w-full flex-wrap items-center justify-center rounded-full border border-line bg-raise/50 px-2 py-1 lg:fixed lg:left-5 lg:top-1/2 lg:z-30 lg:mx-0 lg:mb-0 lg:-translate-y-1/2 lg:flex-col lg:flex-nowrap lg:bg-raise/70 lg:px-1.5 lg:py-2 lg:backdrop-blur"
+            : "order-first mx-auto mb-5 flex max-w-full flex-wrap items-center justify-center rounded-full border border-line bg-raise/50 px-2 py-1"
+        }
+      >
         {toolbarGroups.map((group, groupIndex) => (
-          <div key={groupIndex} className="flex items-center">
-            {groupIndex > 0 && <span className="mx-1.5 h-4 w-px bg-line" />}
+          <div
+            key={groupIndex}
+            className={`flex items-center ${fullscreen ? "lg:flex-col" : ""}`}
+          >
+            {groupIndex > 0 && (
+              <span
+                className={`mx-1.5 h-4 w-px bg-line ${
+                  fullscreen ? "lg:mx-0 lg:my-1.5 lg:h-px lg:w-4" : ""
+                }`}
+              />
+            )}
             {group.map((action) => {
               const active = isActionActive(action);
               return (
@@ -966,7 +885,11 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
           </div>
         ))}
 
-        <span className="mx-1.5 h-4 w-px bg-line" />
+        <span
+          className={`mx-1.5 h-4 w-px bg-line ${
+            fullscreen ? "lg:mx-0 lg:my-1.5 lg:h-px lg:w-4" : ""
+          }`}
+        />
 
         <button
           type="button"
@@ -1023,28 +946,42 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
           handleEditorKeyDown(e);
           setTimeout(updateActiveStyles, 10);
         }}
-        className="admin-rich-editor admin-editor-textarea min-h-[200px] flex-1 overflow-y-auto px-3 py-4 outline-none"
+        className={`admin-rich-editor admin-editor-textarea min-h-[200px] flex-1 overflow-y-auto outline-none ${
+          fullscreen ? "admin-editor-zen px-1 py-4" : "px-1 py-3"
+        }`}
       />
 
       {/* Footer controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
-        <div className="flex flex-wrap items-center gap-4">
+      <div
+        className={`flex items-center justify-between gap-3 border-t border-line ${
+          fullscreen ? "py-4" : "pt-3"
+        }`}
+      >
+        <div className="flex items-center gap-4">
           {/* Visibility — segmented */}
-          <div className="flex rounded-lg border border-line p-0.5">
-            {visibilityOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setVisibility(option.value)}
-                className={`rounded-md px-2.5 py-1 font-mono text-[10px] tracking-[0.08em] uppercase transition-colors ${
-                  visibility === option.value
-                    ? "bg-raise text-accent"
-                    : "text-ink-3 hover:text-ink"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="relative flex h-9 rounded-lg border border-line p-0.5">
+            {visibilityOptions.map((option) => {
+              const active = visibility === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setVisibility(option.value)}
+                  className={`relative rounded-md h-full flex items-center px-2.5 font-mono text-[10px] tracking-[0.08em] uppercase transition-colors ${
+                    active ? "text-accent" : "text-ink-3 hover:text-ink"
+                  }`}
+                >
+                  {active && (
+                    <motion.div
+                      layoutId="visibility-pill"
+                      className="absolute inset-0 rounded bg-raise"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{option.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           <span className="font-mono text-[11px] text-ink-3">
@@ -1068,11 +1005,28 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
             !title.trim() ||
             !content.trim()
           }
-          className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-9 items-center justify-center rounded-lg bg-accent px-5 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {busy ? "Publishing…" : editingBlog ? "Update blog" : "Publish blog"}
         </button>
       </div>
+
+      {showCoverPrompt && (
+        <PublishCoverDialog
+          coverImage={coverImage}
+          uploading={uploadingCover}
+          publishing={busy}
+          publishLabel={publishCoverLabel}
+          onDismiss={() => setShowCoverPrompt(false)}
+          onFileSelect={(files) => {
+            void handleCoverUpload(files);
+          }}
+          onRemoveCover={() => setCoverImage(null)}
+          onPublish={() => {
+            void publishBlog();
+          }}
+        />
+      )}
     </form>
   );
 });

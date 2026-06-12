@@ -18,6 +18,7 @@ interface ImageAttachment {
 interface PostComposerProps {
   agent: Agent | null;
   devMode: boolean;
+  fullscreen?: boolean;
   onPublished: (url: string) => void;
   onError: (msg: string) => void;
 }
@@ -69,7 +70,7 @@ const CharRing = ({ used }: { used: number }) => {
   );
 };
 
-const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProps) => {
+const PostComposer = ({ agent, devMode, fullscreen = false, onPublished, onError }: PostComposerProps) => {
   const [text, setText] = useState("");
   const [images, setImages] = useState<ImageAttachment[]>([]);
   const [editingAlt, setEditingAlt] = useState<number | null>(null);
@@ -164,19 +165,21 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
   };
 
   return (
-    <form onSubmit={publish} className="flex min-h-0 flex-1 flex-col">
+    <form onSubmit={publish} className="flex min-h-0 flex-1 flex-col gap-0">
       {/* Writing surface — bare paper, no box */}
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="What's up?"
         autoFocus
-        className="min-h-[160px] w-full flex-1 resize-none bg-transparent px-1 py-2 text-[16px] leading-relaxed text-ink placeholder-ink-3 outline-none"
+        className={`min-h-[160px] w-full flex-1 resize-none bg-transparent px-1 py-2 leading-relaxed text-ink placeholder-ink-3 outline-none ${
+          fullscreen ? "text-[17px]" : "text-[16px]"
+        }`}
       />
 
       {/* Image previews */}
       {images.length > 0 && (
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className={`mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 ${editingAlt === null ? "mb-4" : ""}`}>
           {images.map((img, idx) => (
             <div key={img.preview} className="group relative">
               <img
@@ -210,7 +213,7 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
 
       {/* Alt text editor */}
       {editingAlt !== null && images[editingAlt] && (
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-line bg-raise px-3 py-2">
+        <div className="mt-3 mb-4 flex items-center gap-2 rounded-lg border border-line bg-raise px-3 py-2">
           <span className="shrink-0 font-mono text-[11px] text-ink-2">
             alt · image {editingAlt + 1}
           </span>
@@ -233,14 +236,18 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
       )}
 
       {/* Footer */}
-      <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
+      <div
+        className={`flex items-center justify-between gap-3 border-t border-line ${
+          fullscreen ? "py-4" : "pt-3"
+        }`}
+      >
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={images.length >= MAX_IMAGES}
-          className="flex items-center gap-1.5 py-1 font-mono text-[11.5px] text-ink-3 transition-colors hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-9 items-center gap-2 rounded-lg border border-line px-3 font-mono text-[12px] text-ink-3 transition-colors hover:border-accent/40 hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <ImagePlus size={13} />
+          <ImagePlus size={15} />
           {images.length > 0 ? `media ${images.length}/${MAX_IMAGES}` : "media"}
         </button>
         <input
@@ -257,7 +264,7 @@ const PostComposer = ({ agent, devMode, onPublished, onError }: PostComposerProp
           <button
             type="submit"
             disabled={busy || (!agent && !devMode) || !text.trim() || remaining < 0}
-            className="rounded-lg bg-accent px-5 py-2 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-9 items-center justify-center rounded-lg bg-accent px-5 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {busy ? "Publishing…" : "Publish"}
           </button>

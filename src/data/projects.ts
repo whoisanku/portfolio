@@ -2,6 +2,7 @@ export interface Project {
   title: string;
   description: string;
   url: string;
+  screenshot?: string; // path to app screenshot — leave undefined for placeholder
 }
 
 export const projects: Project[] = [

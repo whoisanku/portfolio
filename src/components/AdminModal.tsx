@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import BlogEditor, { type BlogEditorHandle } from "./BlogEditor";
+import ConfirmDialog from "./ConfirmDialog";
 import PostComposer from "./PostComposer";
 
 type Tab = "post" | "blog";
@@ -101,6 +102,7 @@ const AdminModal = () => {
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to save draft");
         setSavingDraftOnClose(false);
+        setShowDraftPrompt(false);
       }
     })();
   }, [finishClose, savingDraftOnClose]);
@@ -154,7 +156,7 @@ const AdminModal = () => {
 
   const modal = (
     <div
-      className={`admin-modal-overlay ${isFullscreen ? "is-fullscreen" : ""}`}
+      className={`admin-modal-overlay ${isFullscreen ? "is-fullscreen" : ""} ${devMode ? "is-dev-mode" : ""}`}
       onClick={handleClose}
     >
       <div
@@ -215,7 +217,7 @@ const AdminModal = () => {
               )}
             </div>
             {devMode && (
-              <span className="rounded-md border border-accent/30 px-2 py-0.5 font-mono text-[10px] tracking-[0.14em] text-accent uppercase">
+              <span className="rounded-md border border-accent/30 bg-accent/10 px-2 py-0.5 font-mono text-[10px] tracking-[0.14em] text-accent uppercase">
                 Dev Mode
               </span>
             )}
@@ -251,12 +253,13 @@ const AdminModal = () => {
 
 
         {/* Content area — centered writing column, wider gutters in fullscreen */}
-        <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto py-5 ${isFullscreen ? "px-8" : "px-6"}`}>
-          <div className={`flex min-h-0 w-full flex-1 flex-col ${isFullscreen ? "mx-auto max-w-3xl" : ""}`}>
+        <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${isFullscreen ? "px-4 pt-6 pb-0 sm:px-10 sm:pt-9" : "px-4 py-5 sm:px-6"}`}>
+          <div className={`flex min-h-0 w-full flex-1 flex-col ${isFullscreen ? `mx-auto ${tab === "post" ? "max-w-2xl" : "max-w-4xl"}` : ""}`}>
           {tab === "post" ? (
             <PostComposer
               agent={agent}
               devMode={devMode}
+              fullscreen={isFullscreen}
               onPublished={handlePostPublished}
               onError={handleError}
             />
@@ -266,6 +269,7 @@ const AdminModal = () => {
               ref={blogEditorRef}
               agent={agent}
               devMode={devMode}
+              fullscreen={isFullscreen}
               onPublished={handleBlogPublished}
               onError={handleError}
             />
@@ -309,40 +313,26 @@ const AdminModal = () => {
         </div>
 
         {showDraftPrompt && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-paper/85 px-4 backdrop-blur-sm">
-            <div className="w-full max-w-sm rounded-[10px] border border-line bg-paper p-4 shadow-2xl shadow-ink/10">
-              <h2 className="font-display text-[20px] font-medium text-ink">
-                Unsaved blog changes
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-ink-2">
-                Save what you wrote as a draft before closing?
-              </p>
-              <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowDraftPrompt(false)}
-                  className="rounded-lg px-3 py-2 font-mono text-[11px] text-ink-3 transition-colors hover:bg-raise hover:text-ink"
-                >
-                  Keep writing
-                </button>
-                <button
-                  type="button"
-                  onClick={finishClose}
-                  className="rounded-lg px-3 py-2 font-mono text-[11px] text-ink-3 transition-colors hover:bg-raise hover:text-red-500"
-                >
-                  Close without saving
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveDraftAndClose}
-                  disabled={savingDraftOnClose}
-                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {savingDraftOnClose ? "Saving..." : "Save draft"}
-                </button>
-              </div>
-            </div>
-          </div>
+          <ConfirmDialog
+            title="Unsaved blog changes"
+            description="Save what you wrote as a draft before closing?"
+            onDismiss={() => setShowDraftPrompt(false)}
+            actions={[
+              {
+                key: "discard",
+                label: "Close without saving",
+                onClick: finishClose,
+                variant: "danger",
+              },
+              {
+                key: "save-draft",
+                label: savingDraftOnClose ? "Saving..." : "Save draft",
+                onClick: handleSaveDraftAndClose,
+                disabled: savingDraftOnClose,
+                variant: "primary",
+              },
+            ]}
+          />
         )}
       </div>
     </div>
