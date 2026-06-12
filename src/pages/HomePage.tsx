@@ -34,7 +34,7 @@ const HomePage = () => {
 
       {/* Selected work */}
       <section>
-        <div className="section-label mb-5">
+        <div className="section-label section-label-strong mb-5">
           <span>Selected work</span>
         </div>
         <div className="flex flex-col">
