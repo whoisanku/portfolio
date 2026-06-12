@@ -28,7 +28,7 @@ const HomePage = () => {
           />
         )}
         <h1 className="font-display text-[40px] leading-[1.08] font-normal tracking-[-0.01em] text-balance sm:text-[49px]">
-          Ankit <em className="italic text-accent">loves</em> designing softwares, content writing &amp; ai.
+          Ankit <em className="italic text-accent">loves</em> designing &amp; building with AI.
         </h1>
       </section>
 
