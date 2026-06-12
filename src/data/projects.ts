@@ -12,7 +12,7 @@ export const projects: Project[] = [
   {
     title: "Porto",
     description:
-      "Import your tweets to Bluesky in a few clicks — 100% local processing, media included. Featured by Lifehacker, Mashable & more.",
+      "Move your tweets to Bluesky in a few clicks, processed fully on your device. Featured by Lifehacker, Mashable and more.",
     url: "https://github.com/Nester-xyz/Porto",
     screenshotStack: {
       front: "https://api.grove.storage/553c929054726e2c5b2bcce5ae94bc327565d2e731da3cec0eb2d89d1fcf38e3",
@@ -20,15 +20,19 @@ export const projects: Project[] = [
     },
   },
   {
-    title: "Connectsky",
+    title: "Sluice",
     description:
-      "Chrome extension for ATProtocol — service workers, message passing, slick UI.",
-    url: "https://github.com/Nester-xyz/Connectsky",
+      "Decentralized AI routing layer that sends each request to the best provider across cost, speed, quality and privacy.",
+    url: "https://thesluice.xyz",
+    screenshotStack: {
+      front: "https://api.grove.storage/ccbc75c145bb56dddb6a145bd50536161377948ed455c7c7bbf03fd711f2052c",
+      back: "https://api.grove.storage/dc4495ece1687fc359930615167c37e10169eb16b784e77adb80e4fde3a89ba9",
+    },
   },
   {
     title: "Waverly",
     description:
-      "Added background jobs, revamped the UI & Webpack bundle for this productivity extension.",
+      "Productivity extension where I added background jobs, reworked the UI and modernized the build pipeline.",
     url: "https://github.com/waverly",
   },
 ];

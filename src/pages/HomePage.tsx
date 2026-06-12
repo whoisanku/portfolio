@@ -158,9 +158,9 @@ const HomePage = () => {
               HoneyComb.AI
             </div>
             <ul className="flex flex-col gap-2 text-[14.5px] text-ink-2 pl-4 list-disc marker:text-ink-3/60">
-              <li>Developed an AI-powered onboarding agent using FastAPI, integrating advanced LLM-based capabilities to streamline restaurant partner onboarding.</li>
-              <li>Engineered React-based updates for the primary onboarding portal, optimizing UI/UX performance and ensuring seamless integration with backend services.</li>
-              <li>Enhanced overall pipeline scalability and reliability by implementing feature optimizations and robust automation enhancements.</li>
+              <li>Built an AI onboarding agent with FastAPI and LLM tooling that streamlined restaurant partner onboarding.</li>
+              <li>Shipped React updates for the onboarding portal with smoother UI flows and tighter backend integration.</li>
+              <li>Improved pipeline scalability and reliability through feature optimizations and automation.</li>
             </ul>
           </div>
 
@@ -178,9 +178,9 @@ const HomePage = () => {
               Nester-xyz
             </div>
             <ul className="flex flex-col gap-2 text-[14.5px] text-ink-2 pl-4 list-disc marker:text-ink-3/60">
-              <li>Led frontend development and implemented polished user interfaces, OAuth integration for ATProto, and client-side flows for Porto — a tweet migration extension with 4,000+ users.</li>
-              <li>Built and optimized browser extensions utilizing robust message-passing systems, background service workers, and active state synchronization across extension contexts.</li>
-              <li>Helped architect smart contracts and designed decentralized protocols and Web3 integrations across multiple testnets and mainnets.</li>
+              <li>Led frontend for Porto, a tweet migration extension with 4,000+ users, covering ATProto OAuth and client-side flows.</li>
+              <li>Built browser extensions with message passing, service workers and state sync across extension contexts.</li>
+              <li>Helped design smart contracts and Web3 integrations across multiple testnets and mainnets.</li>
             </ul>
           </div>
         </div>

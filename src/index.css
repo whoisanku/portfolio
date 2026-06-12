@@ -198,6 +198,105 @@ body {
   content: none;
 }
 
+/* ─── Wavy rule (snake hairline, same motif as the nav underline) ───
+   Shape comes from a repeating SVG mask, color from the background so it
+   follows the theme tokens. */
+.wavy-rule {
+  height: 7px;
+  background: var(--line);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 7'%3E%3Cpath d='M0 3.5 Q2.5 0.8 5 3.5 T10 3.5' fill='none' stroke='black' stroke-width='1.1'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 7'%3E%3Cpath d='M0 3.5 Q2.5 0.8 5 3.5 T10 3.5' fill='none' stroke='black' stroke-width='1.1'/%3E%3C/svg%3E");
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-size: 10px 7px;
+  mask-size: 10px 7px;
+  -webkit-mask-position: left center;
+  mask-position: left center;
+  transition: background-color 0.3s ease;
+}
+
+
+
+/* ─── Video player (posts page) ─── */
+.vid-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3.5px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.vid-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent-ink);
+  border: 0;
+  transition: transform 0.15s ease;
+}
+
+.vid-range::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+}
+
+.vid-range::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent-ink);
+  border: 0;
+}
+
+/* Vertical volume slider (pops above the speaker button) */
+.vid-range-vertical {
+  -webkit-appearance: none;
+  appearance: none;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 4px;
+  height: 58px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.vid-range-vertical::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent-ink);
+  border: 0;
+}
+
+.vid-range-vertical::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent-ink);
+  border: 0;
+}
+
+.video-frame:fullscreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0;
+  background: black;
+}
+
+.video-frame:fullscreen video {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+}
+
 /* ─── Section label (mono, with trailing rule) ─── */
 .section-label {
   display: flex;
@@ -518,6 +617,13 @@ body {
   }
 }
 
+/* Mobile: shorter belt in view, so drift quicker to keep it lively */
+@media (max-width: 639px) {
+  .press-marquee-track {
+    animation-duration: 26s;
+  }
+}
+
 /* Reduced motion: static wrapped row, clones hidden */
 @media (prefers-reduced-motion: reduce) {
   .press-marquee {
@@ -610,6 +716,22 @@ body {
   max-height: 100dvh;
   border: 0;
   border-radius: 0;
+}
+
+/* Mobile: the studio is always fullscreen (toggle only exists on desktop) */
+@media (max-width: 639px) {
+  .admin-modal-overlay {
+    padding: 0;
+  }
+
+  .admin-modal-content {
+    max-width: 100%;
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
 }
 
 @keyframes admin-overlay-in {

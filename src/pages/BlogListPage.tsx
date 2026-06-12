@@ -1,4 +1,4 @@
-import { Clock3, Edit3, Trash2 } from "lucide-react";
+import { ArrowUpRight, Clock3, Edit3, Trash2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -135,9 +135,6 @@ const BlogListPage = () => {
     );
   }
 
-  const featured = publicEntries[0] ?? null;
-  const featuredCover = featured ? getCoverUrl(featured) : undefined;
-  const others = publicEntries.slice(1);
 
   return (
     <div className="space-y-10">
@@ -191,62 +188,18 @@ const BlogListPage = () => {
         </section>
       )}
 
-      {featured && (
-        <section>
-          <Link
-            to={`/blog/${featured.rkey}`}
-            className={`group grid min-w-0 max-w-full overflow-hidden rounded-[10px] border border-line bg-raise/60 transition-colors duration-200 hover:border-accent hover:bg-raise ${
-              featuredCover ? "sm:grid-cols-[minmax(0,1fr)_180px]" : ""
-            }`}
-          >
-            <div className="min-w-0 p-4 sm:p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <Badge accent>Latest</Badge>
-                  <BlogMeta entry={featured} />
-                </div>
-                {isAdmin && (
-                  <AdminRowActions
-                    entry={featured}
-                    deleting={deletingRkey === featured.rkey}
-                    onEdit={setEditingBlog}
-                    onDelete={handleDelete}
-                  />
-                )}
-              </div>
-              <h1 className="mt-3 font-display text-[24px] font-medium leading-[1.12] text-balance text-ink transition-colors group-hover:text-accent sm:mt-4 sm:text-[27px]">
-                {featured.title}
-              </h1>
-              <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-ink-2 sm:mt-3 sm:line-clamp-3 sm:text-[14px]">
-                {excerpt(featured.content, 220)}
-              </p>
-            </div>
-
-            {featuredCover && (
-              <div className="order-first h-44 w-full overflow-hidden border-b border-line sm:order-last sm:h-full sm:aspect-auto sm:border-b-0 sm:border-l">
-                <img
-                  src={featuredCover}
-                  alt={featured.title}
-                  className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-                />
-              </div>
-            )}
-          </Link>
-        </section>
-      )}
-
-      {others.length > 0 && (
+      {publicEntries.length > 0 && (
         <section className="flex flex-col">
-          {others.map((entry) => {
+          {publicEntries.map((entry) => {
             const cover = getCoverUrl(entry);
             return (
               <Link
                 key={entry.rkey}
                 to={`/blog/${entry.rkey}`}
-                className="group -mx-3 flex min-w-0 max-w-full gap-4 rounded-[8px] border border-transparent px-3 py-4 transition-colors duration-200 hover:border-line hover:bg-raise/60"
+                className="project-row group"
               >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-3">
+                <div className="project-row-text">
+                  <div className="flex items-center justify-between gap-3">
                     <BlogMeta entry={entry} />
                     {isAdmin && (
                       <AdminRowActions
@@ -257,17 +210,27 @@ const BlogListPage = () => {
                       />
                     )}
                   </div>
-                  <h2 className="mt-2 line-clamp-1 font-display text-[20px] font-medium leading-snug text-ink transition-colors group-hover:text-accent">
-                    {entry.title}
-                  </h2>
-                  <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-ink-3">
+                  <div className="flex items-center gap-2">
+                    <h2 className="line-clamp-1 font-display text-[22px] leading-[1.2] font-medium transition-colors duration-200 group-hover:text-accent">
+                      {entry.title}
+                    </h2>
+                    <ArrowUpRight
+                      size={16}
+                      className="shrink-0 text-ink-3 opacity-0 -translate-x-1 transition-all duration-200 group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
+                    />
+                  </div>
+                  <p className="line-clamp-2 text-pretty text-[13.5px] leading-[1.55] text-ink-2">
                     {excerpt(entry.content, 145)}
                   </p>
                 </div>
 
                 {cover && (
-                  <div className="h-16 w-16 shrink-0 self-center overflow-hidden rounded-md border border-line md:h-20 md:w-20">
-                    <img src={cover} alt={entry.title} className="h-full w-full object-cover" />
+                  <div className="project-row-screenshot">
+                    <img
+                      src={cover}
+                      alt={entry.title}
+                      className="project-row-screenshot-img transition-transform duration-500 ease-out group-hover:scale-[1.05]"
+                    />
                   </div>
                 )}
               </Link>

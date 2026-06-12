@@ -223,11 +223,11 @@ const AdminModal = () => {
             )}
           </div>
           <div className="flex items-center gap-1">
-            {/* Fullscreen toggle */}
+            {/* Fullscreen toggle — desktop only; mobile is always fullscreen */}
             <button
               type="button"
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className="rounded-lg p-2 text-ink-3 transition-colors hover:bg-raise hover:text-ink"
+              className="hidden rounded-lg p-2 text-ink-3 transition-colors hover:bg-raise hover:text-ink sm:block"
               title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
             >
               {isFullscreen ? (

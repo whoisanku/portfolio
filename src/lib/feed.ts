@@ -13,6 +13,27 @@ export interface FeedExternal {
   thumb?: string;
 }
 
+export interface FeedVideo {
+  /** HLS playlist URL (video.bsky.app) */
+  playlist: string;
+  thumbnail?: string;
+  alt?: string;
+  aspectRatio?: { width: number; height: number };
+}
+
+/** Rich-text annotation (mention / link / hashtag) over a UTF-8 byte range. */
+export interface FacetFeature {
+  $type: string;
+  did?: string;
+  uri?: string;
+  tag?: string;
+}
+
+export interface Facet {
+  index: { byteStart: number; byteEnd: number };
+  features: FacetFeature[];
+}
+
 export interface FeedAuthor {
   did: string;
   handle: string;
@@ -31,6 +52,20 @@ export interface FeedPost {
   replyCount: number;
   images: FeedImage[];
   external?: FeedExternal;
+  video?: FeedVideo;
+  facets?: Facet[];
+  /** Pinned to the top of the author's profile. */
+  pinned?: boolean;
+}
+
+interface EmbedView {
+  $type: string;
+  images?: FeedImage[];
+  external?: FeedExternal;
+  playlist?: string;
+  thumbnail?: string;
+  alt?: string;
+  aspectRatio?: { width: number; height: number };
 }
 
 interface AuthorFeedResponse {
@@ -47,13 +82,8 @@ interface AuthorFeedResponse {
         displayName?: string;
         avatar?: string;
       };
-      record: { text?: string; createdAt?: string };
-      embed?: {
-        $type: string;
-        images?: FeedImage[];
-        external?: FeedExternal;
-        media?: { $type: string; images?: FeedImage[]; external?: FeedExternal };
-      };
+      record: { text?: string; createdAt?: string; facets?: Facet[] };
+      embed?: EmbedView & { media?: EmbedView };
       indexedAt: string;
       likeCount?: number;
       repostCount?: number;
@@ -65,11 +95,20 @@ interface AuthorFeedResponse {
 function extractEmbeds(embed: AuthorFeedResponse["feed"][number]["post"]["embed"]): {
   images: FeedImage[];
   external?: FeedExternal;
+  video?: FeedVideo;
 } {
   if (!embed) return { images: [] };
   // recordWithMedia nests the media one level deeper
   const media = embed.media ?? embed;
-  return { images: media.images ?? [], external: media.external };
+  const video = media.playlist
+    ? {
+        playlist: media.playlist,
+        thumbnail: media.thumbnail,
+        alt: media.alt,
+        aspectRatio: media.aspectRatio,
+      }
+    : undefined;
+  return { images: media.images ?? [], external: media.external, video };
 }
 
 /**
@@ -84,6 +123,7 @@ export async function fetchAuthorPosts(
     actor: handle,
     limit: "30",
     filter: "posts_no_replies",
+    includePins: "true",
   });
   if (cursor) params.set("cursor", cursor);
 
@@ -91,10 +131,15 @@ export async function fetchAuthorPosts(
   if (!res.ok) throw new Error(`Failed to load feed (${res.status})`);
   const data = (await res.json()) as AuthorFeedResponse;
 
+  const isPin = (reason: unknown): boolean =>
+    (reason as { $type?: string } | undefined)?.$type ===
+    "app.bsky.feed.defs#reasonPin";
+
   const posts = data.feed
-    .filter((item) => !item.reason && !item.reply)
-    .map(({ post }) => {
-      const { images, external } = extractEmbeds(post.embed);
+    // keep originals and the pinned post; drop reposts and replies
+    .filter((item) => (!item.reason || isPin(item.reason)) && !item.reply)
+    .map(({ post, reason }) => {
+      const { images, external, video } = extractEmbeds(post.embed);
       return {
         uri: post.uri,
         cid: post.cid,
@@ -111,6 +156,9 @@ export async function fetchAuthorPosts(
         replyCount: post.replyCount ?? 0,
         images,
         external,
+        video,
+        facets: post.record.facets,
+        pinned: isPin(reason),
       };
     });
 
