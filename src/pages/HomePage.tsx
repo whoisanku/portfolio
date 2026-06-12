@@ -78,19 +78,20 @@ const HomePage = () => {
                     draggable={false}
                   />
                 </div>
-              ) : (
+              ) : project.screenshot ? (
                 <div className="project-row-screenshot">
-                  {project.screenshot ? (
-                    <img
-                      src={project.screenshot}
-                      alt={`${project.title} screenshot`}
-                      className="project-row-screenshot-img"
-                    />
-                  ) : (
-                    <div className="project-row-screenshot-placeholder">
-                      <span>{project.title.charAt(0)}</span>
-                    </div>
-                  )}
+                  <img
+                    src={project.screenshot}
+                    alt={`${project.title} screenshot`}
+                    className="project-row-screenshot-img"
+                  />
+                </div>
+              ) : (
+                <div className="project-stack">
+                  <div className="project-stack-card project-stack-back project-stack-placeholder-card" />
+                  <div className="project-stack-card project-stack-front project-stack-placeholder-card">
+                    <span>{project.title.charAt(0)}</span>
+                  </div>
                 </div>
               )}
             </a>
