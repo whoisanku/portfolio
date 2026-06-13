@@ -1,6 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 import { motion } from "motion/react";
 import { useOutletContext } from "react-router-dom";
+import ScienceAccounts from "../components/ScienceAccounts";
 import { pressMentions } from "../data/press";
 import { projects } from "../data/projects";
 
@@ -185,6 +186,9 @@ const HomePage = () => {
           </div>
         </div>
       </section>
+
+      {/* Science & astronomy — accounts I run */}
+      <ScienceAccounts />
 
     </div>
   );
