@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { OWNER_HANDLE, PUBLIC_API } from "../lib/config";
 import AdminModal from "./AdminModal";
 import AnimatedSign from "./AnimatedSign";
+import ChatWidget from "./ChatWidget";
 import { AnimatePresence, motion } from "motion/react";
 
 const navItems = [
@@ -568,6 +569,8 @@ const Layout = () => {
           </div>
         </div>
       </footer>
+
+      <ChatWidget ownerAvatar={avatarUrl} />
     </div>
   );
 };

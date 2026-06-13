@@ -379,15 +379,14 @@ const PostsPage = () => {
         </p>
       )}
 
-      {/* Back to top */}
       <button
         type="button"
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         aria-label="Back to top"
-        className={`fixed right-5 bottom-6 z-40 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-line bg-paper text-ink-3 shadow-[0_4px_18px_rgba(0,0,0,0.12)] transition-all duration-300 hover:border-accent hover:text-accent sm:right-8 ${showTop ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
+        className={`fixed right-5 bottom-20 z-40 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-line bg-paper text-ink-3 shadow-[0_4px_18px_rgba(0,0,0,0.12)] transition-all duration-300 hover:border-accent hover:text-accent ${showTop ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
           }`}
       >
-        <ArrowUp size={16} />
+        <ArrowUp size={20} />
       </button>
 
       {lightbox && (
