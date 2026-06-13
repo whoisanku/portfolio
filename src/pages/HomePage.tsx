@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { motion } from "motion/react";
 import { useOutletContext } from "react-router-dom";
@@ -8,6 +9,35 @@ import { projects } from "../data/projects";
 
 const HomePage = () => {
   const { avatarUrl } = useOutletContext<{ avatarUrl: string | null }>();
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
+  // Keyboard navigation for lightbox (Escape to close)
+  useEffect(() => {
+    if (!lightbox) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setLightbox(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [lightbox]);
+
+  // Lock body scroll when lightbox is open
+  useEffect(() => {
+    if (lightbox) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [lightbox]);
+
+  const openLightbox = (imageUrl: string) => {
+    setLightbox(imageUrl);
+  };
 
   return (
     <div className="flex flex-col gap-28">
@@ -64,30 +94,51 @@ const HomePage = () => {
               </div>
 
               {/* Right: screenshot area */}
-              {project.screenshotStack ? (
-                <div className="project-stack">
-                  <img
-                    src={project.screenshotStack.back}
-                    alt={`${project.title} second screen`}
-                    className="project-stack-card project-stack-back"
-                    draggable={false}
-                  />
-                  <img
-                    src={project.screenshotStack.front}
-                    alt={`${project.title} main screen`}
-                    className="project-stack-card project-stack-front"
-                    draggable={false}
-                  />
-                </div>
-              ) : project.screenshot ? (
-                <div className="project-row-screenshot">
-                  <img
-                    src={project.screenshot}
-                    alt={`${project.title} screenshot`}
-                    className="project-row-screenshot-img"
-                  />
-                </div>
-              ) : (
+              {project.screenshotStack ? (() => {
+                const stack = project.screenshotStack;
+                return (
+                  <div className="project-stack">
+                    <img
+                      src={stack.back}
+                      alt={`${project.title} second screen`}
+                      className="project-stack-card project-stack-back cursor-zoom-in"
+                      draggable={false}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openLightbox(stack.back);
+                      }}
+                    />
+                    <img
+                      src={stack.front}
+                      alt={`${project.title} main screen`}
+                      className="project-stack-card project-stack-front cursor-zoom-in"
+                      draggable={false}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openLightbox(stack.front);
+                      }}
+                    />
+                  </div>
+                );
+              })() : project.screenshot ? (() => {
+                const screenshot = project.screenshot;
+                return (
+                  <div className="project-row-screenshot">
+                    <img
+                      src={screenshot}
+                      alt={`${project.title} screenshot`}
+                      className="project-row-screenshot-img cursor-zoom-in"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openLightbox(screenshot);
+                      }}
+                    />
+                  </div>
+                );
+              })() : (
                 <div className="project-stack">
                   <div className="project-stack-card project-stack-back project-stack-placeholder-card" />
                   <div className="project-stack-card project-stack-front project-stack-placeholder-card">
@@ -189,6 +240,24 @@ const HomePage = () => {
 
       {/* Science & astronomy — accounts I run */}
       <ScienceAccounts />
+
+      {/* Fullscreen Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 transition-all duration-300 animate-fade-in"
+          onClick={() => setLightbox(null)}
+        >
+          {/* Active Image Container */}
+          <div className="relative flex max-h-[85vh] max-w-full items-center justify-center">
+            <img
+              src={lightbox}
+              alt="Project screen"
+              className="max-h-[85vh] max-w-full rounded-lg object-contain select-none shadow-[0_24px_64px_rgba(0,0,0,0.5)]"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
 
     </div>
   );

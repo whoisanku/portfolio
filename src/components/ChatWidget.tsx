@@ -298,7 +298,7 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
                 className="flex flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4"
               >
                 <div>
-                  <p className="text-sm font-medium text-ink">Message Anku</p>
+                  <p className="text-sm font-medium text-ink">Powered by Bluesky Social</p>
                   <p className="mt-0.5 text-[12px] leading-relaxed text-ink-3">
                     Sign in with your handle to start a conversation.
                   </p>
@@ -453,7 +453,7 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-paper shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition-transform hover:scale-105 active:scale-95"
-        aria-label={open ? "Close chat" : "Message Anku"}
+        aria-label={open ? "Close chat" : "Message Ankit"}
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.span

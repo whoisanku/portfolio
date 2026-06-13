@@ -391,7 +391,7 @@ const PostsPage = () => {
 
       {lightbox && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4 transition-all duration-300 animate-fade-in"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 transition-all duration-300 animate-fade-in"
           onClick={() => setLightbox(null)}
         >
           {/* Active Image Container */}
