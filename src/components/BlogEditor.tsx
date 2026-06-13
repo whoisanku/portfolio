@@ -2,6 +2,7 @@ import type { Agent } from "@atproto/api";
 import { motion } from "motion/react";
 import {
   Bold,
+  ChevronDown,
   Code,
   Heading1,
   Heading2,
@@ -14,6 +15,7 @@ import {
   ListOrdered,
   Minus,
   Quote,
+  Send,
   Strikethrough,
 } from "lucide-react";
 import {
@@ -424,6 +426,10 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
 
   // Active toolbar styles
   const [activeStyles, setActiveStyles] = useState<Record<string, boolean>>({});
+
+  // On small screens the toolbar collapses to a single row (headings + inline
+  // formatting); the rest is revealed by the chevron. Always expanded on sm+.
+  const [toolbarExpanded, setToolbarExpanded] = useState(false);
 
   const updateActiveStyles = () => {
     const editor = editorRef.current;
@@ -851,44 +857,51 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
             : "order-first mx-auto mb-5 flex max-w-full flex-wrap items-center justify-center rounded-full border border-line bg-raise/50 px-2 py-1"
         }
       >
-        {toolbarGroups.map((group, groupIndex) => (
-          <div
-            key={groupIndex}
-            className={`flex items-center ${fullscreen ? "lg:flex-col" : ""}`}
-          >
-            {groupIndex > 0 && (
-              <span
-                className={`mx-1.5 h-4 w-px bg-line ${
-                  fullscreen ? "lg:mx-0 lg:my-1.5 lg:h-px lg:w-4" : ""
-                }`}
-              />
-            )}
-            {group.map((action) => {
-              const active = isActionActive(action);
-              return (
-                <button
-                  key={action.label}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => runToolbarAction(action)}
-                  title={action.label}
-                  className={`rounded-md border border-transparent p-1.5 transition-colors ${
-                    active
-                      ? "toolbar-btn-active"
-                      : "text-ink-3 hover:bg-raise hover:text-ink"
+        {toolbarGroups.map((group, groupIndex) => {
+          // Groups past the first two are "secondary": hidden on mobile until
+          // the chevron expands the toolbar, always shown from sm up.
+          const secondary = groupIndex >= 2;
+          return (
+            <div
+              key={groupIndex}
+              className={`items-center ${
+                secondary ? (toolbarExpanded ? "flex" : "hidden sm:flex") : "flex"
+              } ${fullscreen ? "lg:flex-col" : ""}`}
+            >
+              {groupIndex > 0 && (
+                <span
+                  className={`mx-1.5 h-4 w-px bg-line ${
+                    fullscreen ? "lg:mx-0 lg:my-1.5 lg:h-px lg:w-4" : ""
                   }`}
-                >
-                  <action.icon size={16} />
-                </button>
-              );
-            })}
-          </div>
-        ))}
+                />
+              )}
+              {group.map((action) => {
+                const active = isActionActive(action);
+                return (
+                  <button
+                    key={action.label}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => runToolbarAction(action)}
+                    title={action.label}
+                    className={`rounded-md border border-transparent p-1.5 transition-colors ${
+                      active
+                        ? "toolbar-btn-active"
+                        : "text-ink-3 hover:bg-raise hover:text-ink"
+                    }`}
+                  >
+                    <action.icon size={16} />
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
 
         <span
           className={`mx-1.5 h-4 w-px bg-line ${
-            fullscreen ? "lg:mx-0 lg:my-1.5 lg:h-px lg:w-4" : ""
-          }`}
+            toolbarExpanded ? "" : "hidden sm:block"
+          } ${fullscreen ? "lg:mx-0 lg:my-1.5 lg:h-px lg:w-4" : ""}`}
         />
 
         <button
@@ -897,6 +910,8 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
           onClick={insertLink}
           title="Insert link (Ctrl+K)"
           className={`rounded-md border border-transparent p-1.5 transition-colors ${
+            toolbarExpanded ? "" : "hidden sm:block"
+          } ${
             activeStyles["link"]
               ? "toolbar-btn-active"
               : "text-ink-3 hover:bg-raise hover:text-ink"
@@ -910,7 +925,9 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
           onClick={() => fileRef.current?.click()}
           title="Insert image (uploads to Grove)"
           disabled={uploadingImage}
-          className="rounded-md border border-transparent p-1.5 text-ink-3 transition-colors hover:bg-raise hover:text-ink disabled:animate-pulse disabled:text-accent"
+          className={`rounded-md border border-transparent p-1.5 text-ink-3 transition-colors hover:bg-raise hover:text-ink disabled:animate-pulse disabled:text-accent ${
+            toolbarExpanded ? "" : "hidden sm:block"
+          }`}
         >
           <ImagePlus size={16} />
         </button>
@@ -925,6 +942,22 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
             e.currentTarget.value = "";
           }}
         />
+
+        {/* Mobile-only: reveal/hide the secondary tools */}
+        <button
+          type="button"
+          onClick={() => setToolbarExpanded((v) => !v)}
+          aria-label={toolbarExpanded ? "Fewer tools" : "More tools"}
+          aria-expanded={toolbarExpanded}
+          className="ml-1.5 rounded-md border border-transparent p-1.5 text-ink-3 transition-colors hover:bg-raise hover:text-ink sm:hidden"
+        >
+          <ChevronDown
+            size={16}
+            className={`transition-transform duration-200 ${
+              toolbarExpanded ? "rotate-180" : ""
+            }`}
+          />
+        </button>
       </div>
 
       {/* Writing surface */}
@@ -953,13 +986,13 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
 
       {/* Footer controls */}
       <div
-        className={`flex items-center justify-between gap-3 border-t border-line ${
+        className={`flex items-center justify-between gap-2 border-t border-line sm:gap-3 ${
           fullscreen ? "py-4" : "pt-3"
         }`}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-2.5 sm:gap-4">
           {/* Visibility — segmented */}
-          <div className="relative flex h-9 rounded-lg border border-line p-0.5">
+          <div className="relative flex h-9 shrink-0 rounded-lg border border-line p-0.5">
             {visibilityOptions.map((option) => {
               const active = visibility === option.value;
               return (
@@ -967,7 +1000,7 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
                   key={option.value}
                   type="button"
                   onClick={() => setVisibility(option.value)}
-                  className={`relative rounded-md h-full flex items-center px-2.5 font-mono text-[10px] tracking-[0.08em] uppercase transition-colors ${
+                  className={`relative rounded-md h-full flex items-center px-2 sm:px-2.5 font-mono text-[10px] tracking-[0.06em] sm:tracking-[0.08em] uppercase transition-colors ${
                     active ? "text-accent" : "text-ink-3 hover:text-ink"
                   }`}
                 >
@@ -984,13 +1017,14 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
             })}
           </div>
 
-          <span className="font-mono text-[11px] text-ink-3">
-            {wordCount} words · {readTime}
-          </span>
-
-          {uploadingImage && (
-            <span className="animate-pulse font-mono text-[11px] text-accent">
-              Uploading to Grove…
+          {uploadingImage ? (
+            <span className="animate-pulse truncate font-mono text-[11px] text-accent">
+              <span className="sm:hidden">Uploading…</span>
+              <span className="hidden sm:inline">Uploading to Grove…</span>
+            </span>
+          ) : (
+            <span className="hidden truncate font-mono text-[11px] text-ink-3 min-[420px]:inline">
+              {wordCount} words · {readTime}
             </span>
           )}
         </div>
@@ -1005,9 +1039,13 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
             !title.trim() ||
             !content.trim()
           }
-          className="flex h-9 items-center justify-center rounded-lg bg-accent px-5 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          title={editingBlog ? "Update blog" : "Publish blog"}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-5"
         >
-          {busy ? "Publishing…" : editingBlog ? "Update blog" : "Publish blog"}
+          <span className="hidden sm:inline">
+            {busy ? "Publishing…" : editingBlog ? "Update blog" : "Publish blog"}
+          </span>
+          <Send size={16} className={`sm:hidden ${busy ? "animate-pulse" : ""}`} />
         </button>
       </div>
 

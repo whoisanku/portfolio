@@ -650,13 +650,21 @@ body {
 /* ─── Admin dropdown ─── */
 .admin-dropdown {
   position: absolute;
+  /* Sits above the page content (wavy rules, post feed, back-to-top) so they
+     can't bleed through; stays below the editor modal (z-index 1000). Without
+     this the menu shares the page's stacking layer and the wavy rules paint
+     straight over it. */
+  z-index: 200;
+  isolation: isolate;
   top: calc(100% + 10px);
   right: 0;
   width: 260px;
+  /* Fully opaque sheet — solid background + raise layer so nothing shows
+     through the menu. */
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 14px;
-  box-shadow: 0 10px 80px color-mix(in oklch, var(--ink) 6%, transparent);
+  box-shadow: 0 10px 40px color-mix(in oklch, var(--ink) 22%, transparent);
   animation: admin-dropdown-in 0.14s ease-out both;
 }
 
@@ -673,11 +681,19 @@ body {
 .admin-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  /* Own stacking context, parked above everything else (nav underline, wavy
+     rules, back-to-top, lightbox). */
+  z-index: 1000;
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in oklch, var(--ink) 32%, transparent);
+  /* More opaque base so the page's wavy rules never bleed through on engines
+     where the blur is missing or weak. */
+  background: color-mix(in oklch, var(--ink) 55%, transparent);
+  /* iOS Safari needs the -webkit- prefix — without it the blur silently does
+     nothing and the editor reads as a translucent sheet over the page. */
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   animation: admin-overlay-in 0.25s ease-out;
   padding: 16px;
@@ -685,6 +701,7 @@ body {
 
 .admin-modal-overlay.is-dev-mode {
   background: color-mix(in oklch, var(--ink) 20%, transparent);
+  -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
 

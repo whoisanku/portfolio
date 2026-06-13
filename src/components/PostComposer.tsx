@@ -1,5 +1,5 @@
 import { RichText } from "@atproto/api";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, Send, X } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { OWNER_HANDLE } from "../lib/config";
 import { uploadImage, type UploadedImage } from "../lib/mediaUpload";
@@ -264,9 +264,11 @@ const PostComposer = ({ agent, devMode, fullscreen = false, onPublished, onError
           <button
             type="submit"
             disabled={busy || (!agent && !devMode) || !text.trim() || remaining < 0}
-            className="flex h-9 items-center justify-center rounded-lg bg-accent px-5 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            title="Publish"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-5"
           >
-            {busy ? "Publishing…" : "Publish"}
+            <span className="hidden sm:inline">{busy ? "Publishing…" : "Publish"}</span>
+            <Send size={16} className={`sm:hidden ${busy ? "animate-pulse" : ""}`} />
           </button>
         </div>
       </div>

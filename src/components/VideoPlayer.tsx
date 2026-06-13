@@ -10,6 +10,15 @@ const formatTime = (s: number): string => {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 };
 
+/** iOS Safari (iPhone) exposes fullscreen only on the <video> element itself,
+ *  via these non-standard methods — the standard Fullscreen API on a wrapping
+ *  <div> is a no-op there. */
+type IOSVideo = HTMLVideoElement & {
+  webkitEnterFullscreen?: () => void;
+  webkitExitFullscreen?: () => void;
+  webkitDisplayingFullscreen?: boolean;
+};
+
 /**
  * Branded HLS player for Bluesky video embeds. Autoplays muted while in
  * view, pauses off-screen; custom controls follow the site's accent and
@@ -62,12 +71,25 @@ const VideoPlayer = ({ video }: { video: FeedVideo }) => {
     return () => io.disconnect();
   }, []);
 
-  // Track fullscreen so the toggle button works both ways
+  // Track fullscreen so the toggle button works both ways. Desktop/Android
+  // fire `fullscreenchange` on the document; iOS fires `webkit*fullscreen`
+  // on the <video> element instead.
   useEffect(() => {
     const onChange = () =>
       setIsFullscreen(document.fullscreenElement === frameRef.current);
     document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
+
+    const el = videoRef.current;
+    const onIOSBegin = () => setIsFullscreen(true);
+    const onIOSEnd = () => setIsFullscreen(false);
+    el?.addEventListener("webkitbeginfullscreen", onIOSBegin);
+    el?.addEventListener("webkitendfullscreen", onIOSEnd);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      el?.removeEventListener("webkitbeginfullscreen", onIOSBegin);
+      el?.removeEventListener("webkitendfullscreen", onIOSEnd);
+    };
   }, []);
 
   const togglePlay = () => {
@@ -78,8 +100,31 @@ const VideoPlayer = ({ video }: { video: FeedVideo }) => {
   };
 
   const toggleFullscreen = () => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void frameRef.current?.requestFullscreen?.();
+    const video = videoRef.current as IOSVideo | null;
+
+    // Already fullscreen — exit, via whichever API took us there.
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+      return;
+    }
+    if (video?.webkitDisplayingFullscreen) {
+      video.webkitExitFullscreen?.();
+      return;
+    }
+
+    // Standard API (desktop, Android Chrome): fullscreen the frame so our
+    // custom controls stay on top of the video.
+    if (frameRef.current?.requestFullscreen) {
+      void frameRef.current.requestFullscreen().catch(() => {});
+      return;
+    }
+
+    // iOS Safari (iPhone): the only fullscreen available is the native video
+    // player. Make sure playback has begun so the call isn't ignored.
+    if (video?.webkitEnterFullscreen) {
+      if (video.readyState < 1) void video.play().catch(() => {});
+      video.webkitEnterFullscreen();
+    }
   };
 
   const seek = (value: number) => {
