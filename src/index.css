@@ -656,15 +656,13 @@ body {
      straight over it. */
   z-index: 200;
   isolation: isolate;
-  top: calc(100% + 10px);
+  /* Sits close under the icons so, when opened, it fully covers the resume
+     tooltip beneath it (caret included) instead of letting it peek out. */
+  top: calc(100% + 2px);
   right: 0;
   width: 260px;
-  /* Fully opaque sheet — solid background + raise layer so nothing shows
-     through the menu. */
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: 0 10px 40px color-mix(in oklch, var(--ink) 22%, transparent);
+  /* The bubble (rounded body, border, caret, drop-shadow) is drawn by the inner
+     SVG in DropdownShell — same style as the resume tooltip, no outside glow. */
   animation: admin-dropdown-in 0.14s ease-out both;
 }
 

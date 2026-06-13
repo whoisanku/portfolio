@@ -1,4 +1,4 @@
-import { Lock, LockOpen, LogOut, User } from "lucide-react";
+import { Download, Lock, LockOpen, LogOut, User, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import blueskyLogo from "../assets/bsky.svg";
@@ -6,7 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { OWNER_HANDLE, PUBLIC_API } from "../lib/config";
 import AdminModal from "./AdminModal";
 import AnimatedSign from "./AnimatedSign";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 
 const navItems = [
   { to: "/", label: "work" },
@@ -137,6 +137,71 @@ const TopNav = () => {
   );
 };
 
+const DROPDOWN_CARET = 8;
+const DROPDOWN_RADIUS = 10;
+
+/**
+ * Wraps a dropdown's content and paints its bubble — rounded body + caret — as a
+ * single SVG path (so the caret IS the border, no seam), with the caret near the
+ * right edge pointing up at the lock icon. Matches the resume tooltip's style.
+ * Measures content height so the bubble fits any menu without distortion.
+ */
+const DropdownShell = ({ width, children }: { width: number; children: React.ReactNode }) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    if (contentRef.current) setHeight(contentRef.current.offsetHeight);
+  }, []);
+
+  const top = DROPDOWN_CARET;
+  const apex = width - 16; // aim the caret at the lock icon's centre
+  const baseL = apex - 6;
+  const baseR = apex + 6; // === width - DROPDOWN_RADIUS, so it meets the corner cleanly
+  const bottom = top + height;
+  const r = DROPDOWN_RADIUS;
+  const d =
+    `M${r} ${top} L${baseL} ${top} ` +
+    `L${apex - 1.5} ${top - 6.3} Q${apex} ${top - 7.5} ${apex + 1.5} ${top - 6.3} ` +
+    `L${baseR} ${top} A${r} ${r} 0 0 1 ${width} ${top + r} ` +
+    `L${width} ${bottom - r} A${r} ${r} 0 0 1 ${width - r} ${bottom} ` +
+    `L${r} ${bottom} A${r} ${r} 0 0 1 0 ${bottom - r} ` +
+    `L0 ${top + r} A${r} ${r} 0 0 1 ${r} ${top} Z`;
+
+  return (
+    <div className="admin-dropdown" style={{ width }}>
+      {height > 0 && (
+        <svg
+          aria-hidden="true"
+          width={width}
+          height={bottom}
+          viewBox={`0 0 ${width} ${bottom}`}
+          style={{
+            position: "absolute",
+            top: -DROPDOWN_CARET,
+            left: 0,
+            overflow: "visible",
+            pointerEvents: "none",
+            filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.45))",
+          }}
+        >
+          <path
+            d={d}
+            fill="var(--color-paper)"
+            stroke="var(--color-line)"
+            strokeWidth="1"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+      )}
+      <div ref={contentRef} className="relative">
+        {children}
+      </div>
+    </div>
+  );
+};
+
 const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
   const { status, error: authError, signIn, signOut, openModal } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -176,7 +241,7 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
 
       {/* Signed in: quiet menu — identity, write, sign out */}
       {dropdownOpen && isSignedIn && (
-        <div className="admin-dropdown" style={{ width: 208 }}>
+        <DropdownShell width={208}>
           <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
             {avatarUrl ? (
               <img
@@ -227,11 +292,11 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
               <LogOut size={13} /> sign out
             </button>
           </div>
-        </div>
+        </DropdownShell>
       )}
 
       {dropdownOpen && !isSignedIn && (
-        <div className="admin-dropdown">
+        <DropdownShell width={260}>
           <div className="flex flex-col gap-3 p-4">
             <div className="flex items-center gap-2.5">
               <img src={blueskyLogo} alt="Bluesky" className="h-[15px] w-[15px] object-contain -translate-y-[1.5px]" />
@@ -264,7 +329,7 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
             </button>
             {authError && <p className="text-xs text-red-500">{authError}</p>}
           </div>
-        </div>
+        </DropdownShell>
       )}
     </div>
   );
@@ -273,6 +338,19 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
 const Layout = () => {
   const { pathname } = useLocation();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [showResumeTip, setShowResumeTip] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem("resume-tip-seen")) {
+      const t = setTimeout(() => setShowResumeTip(true), 900);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  const dismissResumeTip = () => {
+    localStorage.setItem("resume-tip-seen", "1");
+    setShowResumeTip(false);
+  };
 
   useEffect(() => {
     fetch(
@@ -320,9 +398,76 @@ const Layout = () => {
         ) : (
           <div className="h-9 w-9" />
         )}
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-10">
           <TopNav />
-          <AdminLock avatarUrl={avatarUrl} />
+          <div className="flex items-center gap-1">
+            <div className="relative">
+              <a
+                href="/resume/Ankit Bhandari Resume.pdf.pdf"
+                download
+                onClick={dismissResumeTip}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 transition-colors duration-200 hover:bg-raise hover:text-ink -translate-y-1"
+                aria-label="Download resume"
+              >
+                <Download size={15} />
+              </a>
+              <AnimatePresence>
+                {showResumeTip && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.96 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="absolute right-0 top-full mt-3 cursor-pointer"
+                    style={{ width: 208, zIndex: 50 }}
+                    onClick={dismissResumeTip}
+                  >
+                    {/* Whole bubble — rounded body + caret — is one continuous path, so the
+                        caret IS the border (no seam). The caret sits near the right edge,
+                        pointing up at the download icon, while the body extends left so the
+                        lock's login dialog never overlaps it. */}
+                    <svg
+                      aria-hidden="true"
+                      width="208"
+                      viewBox="0 0 208 90"
+                      preserveAspectRatio="none"
+                      className="absolute left-0"
+                      style={{
+                        top: -8,
+                        height: "calc(100% + 8px)",
+                        overflow: "visible",
+                        pointerEvents: "none",
+                        filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.45))",
+                      }}
+                    >
+                      <path
+                        d="M10 8 L186 8 L190.5 1.7 Q192 0.5 193.5 1.7 L198 8 A10 10 0 0 1 208 18 L208 80 A10 10 0 0 1 198 90 L10 90 A10 10 0 0 1 0 80 L0 18 A10 10 0 0 1 10 8 Z"
+                        fill="var(--color-paper)"
+                        stroke="var(--color-line)"
+                        strokeWidth="1"
+                        strokeLinejoin="round"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    </svg>
+                    <div className="relative px-4 py-3.5 flex items-start gap-2.5">
+                      <p className="flex-1 font-mono text-[11px] leading-relaxed text-ink-3">
+                        Download Ankit's resume as a PDF from here.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={dismissResumeTip}
+                        className="mt-0.5 shrink-0 text-ink-3 hover:text-ink transition-colors"
+                        aria-label="Dismiss"
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <AdminLock avatarUrl={avatarUrl} />
+          </div>
         </div>
       </header>
 
