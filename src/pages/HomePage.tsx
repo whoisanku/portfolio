@@ -51,7 +51,7 @@ const HomePage = () => {
           transition={{ type: "spring", stiffness: 380, damping: 30 }}
         />
         <h1 className="font-display text-[40px] leading-[1.08] font-normal tracking-[-0.01em] text-balance sm:text-[49px]">
-          Ankit <em className="italic text-accent">loves</em> designing &amp; building with AI.
+          Ankit <em className="italic text-accent">loves</em> designing &amp; software development.
         </h1>
       </section>
 
