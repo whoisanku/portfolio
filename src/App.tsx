@@ -7,11 +7,11 @@ import { ToastProvider } from "./components/Toast";
 import { DialogProvider } from "./components/DialogProvider";
 import BlogListPage from "./pages/BlogListPage";
 import HomePage from "./pages/HomePage";
+import OAuthCallback from "./pages/OAuthCallback";
 import PostsPage from "./pages/PostsPage";
 
-// Code-split the heavy bits: markdown rendering and OAuth callback.
+// Code-split the heavy markdown rendering route.
 const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
-const OAuthCallback = lazy(() => import("./pages/OAuthCallback"));
 
 const App = () => (
   <BrowserRouter>

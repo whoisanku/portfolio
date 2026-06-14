@@ -156,8 +156,9 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
   );
 };
 
-const BlogPostPage = () => {
-  const { rkey } = useParams<{ rkey: string }>();
+const BlogPostPage = ({ rkey: rkeyOverride }: { rkey?: string } = {}) => {
+  const { rkey: routeRkey } = useParams<{ rkey: string }>();
+  const rkey = rkeyOverride ?? routeRkey;
   if (!rkey) return <ErrorMessage message="Post not found." />;
   // key resets the view's state when navigating between posts
   return <BlogPostView key={rkey} rkey={rkey} />;

@@ -233,13 +233,26 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
       <button
         type="button"
         onClick={handleLockClick}
-        className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 hover:bg-raise -translate-y-1 ${isSignedIn
+        className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 hover:bg-raise -translate-y-1 ${signingIn || isSignedIn
           ? "text-accent"
           : "text-ink-3 hover:text-accent"
           }`}
-        aria-label={isSignedIn ? "Open admin panel" : "Admin sign in"}
+        aria-label={
+          signingIn
+            ? "Signing in with Bluesky"
+            : isSignedIn
+              ? "Open admin panel"
+              : "Admin sign in"
+        }
+        aria-busy={signingIn || undefined}
       >
-        {isSignedIn ? <LockOpen size={15} /> : <Lock size={15} />}
+        {signingIn ? (
+          <Loader2 size={15} className="animate-spin" />
+        ) : isSignedIn ? (
+          <LockOpen size={15} />
+        ) : (
+          <Lock size={15} />
+        )}
       </button>
 
       {/* Signed in: quiet menu — identity, write, sign out */}
@@ -306,7 +319,9 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
               <span className="text-sm font-medium leading-none text-ink">Bluesky OAuth</span>
             </div>
             <p className="text-xs leading-relaxed text-ink-3">
-              Sign in to write posts &amp; blogs.
+              {signingIn
+                ? "Waiting for Bluesky authorization."
+                : "Sign in to write posts & blogs."}
             </p>
             <button
               type="button"
@@ -314,12 +329,13 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
                 void signIn();
               }}
               disabled={status === "loading" || signingIn}
+              aria-live="polite"
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-70"
             >
               {signingIn ? (
                 <>
                   <Loader2 size={15} className="shrink-0 animate-spin" />
-                  <span>Connecting…</span>
+                  <span>Redirecting to Bluesky...</span>
                 </>
               ) : (
                 <>

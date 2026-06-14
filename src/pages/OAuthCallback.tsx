@@ -1,26 +1,44 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import Loader from "../components/Loader";
+import { lazy, Suspense } from "react";
+import { matchPath } from "react-router-dom";
+import { readAuthReturnPath } from "../auth/oauthState";
+import BlogListPage from "./BlogListPage";
+import HomePage from "./HomePage";
+import PostsPage from "./PostsPage";
+
+const BlogPostPage = lazy(() => import("./BlogPostPage"));
+
+const pathnameFromReturnPath = (path: string) => {
+  try {
+    return new URL(path, window.location.origin).pathname;
+  } catch {
+    return "/";
+  }
+};
 
 /**
- * Minimal OAuth callback page. The BrowserOAuthClient processes the
- * authorization code from the URL during client.init() in AuthContext.
- * This page simply shows a loader and redirects to "/" — the AuthContext
- * detects the /oauth/callback path and auto-opens the admin modal.
+ * The OAuth client consumes the callback URL from AuthContext. While that runs,
+ * keep the visible page on the route that launched OAuth instead of swapping to
+ * a full-page loader.
  */
 const OAuthCallback = () => {
-  const navigate = useNavigate();
+  const pathname = pathnameFromReturnPath(readAuthReturnPath());
+  const blogPostMatch = matchPath(
+    { path: "/blog/:rkey", end: true },
+    pathname,
+  );
 
-  useEffect(() => {
-    // Give AuthContext a tick to pick up the callback, then navigate home.
-    // The AuthContext init already handles session creation from the URL params.
-    const timer = setTimeout(() => {
-      navigate("/", { replace: true });
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [navigate]);
+  if (blogPostMatch?.params.rkey) {
+    return (
+      <Suspense fallback={<BlogListPage />}>
+        <BlogPostPage rkey={blogPostMatch.params.rkey} />
+      </Suspense>
+    );
+  }
 
-  return <Loader label="Signing in…" />;
+  if (pathname === "/blog") return <BlogListPage />;
+  if (pathname === "/posts" || pathname === "/post") return <PostsPage />;
+
+  return <HomePage />;
 };
 
 export default OAuthCallback;

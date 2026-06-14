@@ -172,7 +172,6 @@ const VideoPlayer = ({ video }: { video: FeedVideo }) => {
         width: isWide ? "calc(100% - 34px)" : `min(100%, ${frameWidth}px)`,
       }}
     >
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <video
         ref={videoRef}
         poster={video.thumbnail}

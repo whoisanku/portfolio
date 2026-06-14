@@ -10,12 +10,21 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import { resolveHandle } from "../lib/atproto";
 import { OWNER_HANDLE } from "../lib/config";
 import { getOAuthClient } from "../lib/oauth";
 import type { BlogEntry } from "../lib/blog";
-import RedirectOverlay from "../components/RedirectOverlay";
 import { useToast } from "../components/Toast";
+import {
+  clearAuthReturnPath,
+  clearPendingAdminAuth,
+  hasPendingAdminAuth,
+  isOAuthCallbackPath,
+  markPendingAdminAuth,
+  readAuthReturnPath,
+  rememberAuthReturnPath,
+} from "./oauthState";
 
 export type AuthStatus = "loading" | "signed-out" | "signed-in";
 
@@ -28,7 +37,7 @@ interface AuthContextValue {
   /** Authenticated agent — only set when the owner is signed in (null in dev mode). */
   agent: Agent | null;
   error: string | null;
-  /** True while handing off to Bluesky's OAuth page (pre-redirect gap). */
+  /** True while handing off to Bluesky or resolving the OAuth return. */
   signingIn: boolean;
   /** True when running on localhost — OAuth is bypassed, agent is null. */
   devMode: boolean;
@@ -51,10 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [signingIn, setSigningIn] = useState(false);
+  // True across the whole OAuth round-trip until client.init() resolves.
+  const [signingIn, setSigningIn] = useState(
+    () => !IS_DEV && (isOAuthCallbackPath() || hasPendingAdminAuth()),
+  );
   const sessionRef = useRef<OAuthSession | null>(null);
   const initialized = useRef(false);
   const toast = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (initialized.current) return;
@@ -68,8 +81,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const client = await getOAuthClient();
         const result = await client.init();
+        const shouldOpenAdmin = hasPendingAdminAuth() || isOAuthCallbackPath();
+        const finishOAuthReturn = () => {
+          const wasCallback = isOAuthCallbackPath();
+          const returnPath = readAuthReturnPath();
+          clearPendingAdminAuth();
+          clearAuthReturnPath();
+          if (wasCallback) navigate(returnPath, { replace: true });
+        };
+
         if (!result) {
           setStatus("signed-out");
+          if (shouldOpenAdmin) finishOAuthReturn();
           return;
         }
 
@@ -81,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setError(msg);
           setStatus("signed-out");
           toast.error("Sign-in blocked", { description: msg });
+          if (shouldOpenAdmin) finishOAuthReturn();
           return;
         }
 
@@ -92,21 +116,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
         // Auto-open modal after OAuth callback
-        if (
-          sessionStorage.getItem("open-admin-modal") === "1" ||
-          window.location.pathname === "/oauth/callback"
-        ) {
-          sessionStorage.removeItem("open-admin-modal");
+        if (shouldOpenAdmin) {
+          finishOAuthReturn();
           setModalOpen(true);
-          if (window.location.pathname === "/oauth/callback") {
-            window.history.replaceState(null, "", "/");
-          }
         }
       } catch (err) {
+        if (isOAuthCallbackPath()) {
+          const returnPath = readAuthReturnPath();
+          clearPendingAdminAuth();
+          clearAuthReturnPath();
+          navigate(returnPath, { replace: true });
+        }
         const msg = err instanceof Error ? err.message : "Sign-in failed";
         setError(msg);
         setStatus("signed-out");
         toast.error("Couldn't complete sign-in", { description: msg });
+      } finally {
+        // The login round-trip is over (success or not) — stop the lock spinner.
+        setSigningIn(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -122,17 +149,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Show the redirect veil while we resolve the handle + build the auth URL,
-    // then the browser navigates away to Bluesky. The veil stays up until then.
+    // Keep the lock in a busy state while we resolve the handle + build the auth URL,
+    // then the browser navigates away to Bluesky.
     setSigningIn(true);
+    rememberAuthReturnPath();
+    markPendingAdminAuth();
     try {
-      sessionStorage.setItem("open-admin-modal", "1");
       const client = await getOAuthClient();
       await client.signIn(OWNER_HANDLE, { state: "admin" });
       // Navigation happens above; nothing runs after it on success.
     } catch (err) {
       setSigningIn(false);
-      sessionStorage.removeItem("open-admin-modal");
+      clearPendingAdminAuth();
+      clearAuthReturnPath();
       const msg = err instanceof Error ? err.message : "Couldn't start sign-in";
       setError(msg);
       toast.error("Couldn't reach Bluesky", { description: msg });
@@ -179,7 +208,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-      <RedirectOverlay show={signingIn} />
     </AuthContext.Provider>
   );
 }
