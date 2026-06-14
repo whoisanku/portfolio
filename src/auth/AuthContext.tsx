@@ -114,12 +114,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionRef.current = result.session;
         setAgent(new Agent(result.session));
         setStatus("signed-in");
-        toast.success("Signed in", {
-          description: `Welcome back, @${OWNER_HANDLE}.`,
-        });
 
-        // Auto-open modal after OAuth callback
+        // Only greet + open the panel when an actual sign-in just completed —
+        // not on a silent session restore (every page reload would toast).
         if (shouldOpenAdmin) {
+          toast.success("Signed in", {
+            description: `Welcome back, @${OWNER_HANDLE}.`,
+          });
           finishOAuthReturn();
           setModalOpen(true);
         }
