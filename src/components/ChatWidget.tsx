@@ -10,6 +10,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { OWNER_HANDLE } from "../lib/config";
 import {
   clearChatSession,
@@ -114,6 +115,133 @@ const TooltipShell = ({
         {children}
       </div>
     </div>
+  );
+};
+
+/**
+ * "What is an app password?" help. Hover opens the tooltip on desktop, and tap/click
+ * toggles a persistent tooltip (rendered in a portal so the chat panel's `overflow-hidden`
+ * can't clip it) positioned above the trigger via fixed coordinates. Works on desktop
+ * and touch, and the "Create one on Bluesky" link stays clickable.
+ */
+const AppPasswordHelp = () => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isClicked, setIsClicked] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<number | null>(null);
+  const [pos, setPos] = useState<{ left: number; bottom: number; apexX: number } | null>(null);
+
+  const isOpen = isHovered || isClicked;
+
+  const place = useCallback(() => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const width = 240;
+    const margin = 8;
+    const iconCenter = r.left + r.width / 2;
+    const left = Math.max(margin, Math.min(iconCenter - width / 2, window.innerWidth - width - margin));
+    setPos({ left, bottom: window.innerHeight - r.top + margin, apexX: iconCenter - left });
+  }, []);
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = window.setTimeout(() => {
+      setIsHovered(false);
+    }, 150);
+  };
+
+  const handleClick = () => {
+    setIsClicked((c) => {
+      const next = !c;
+      if (!next) {
+        setIsHovered(false);
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    place();
+    const reposition = () => place();
+    const onAway = (e: Event) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || popRef.current?.contains(t)) return;
+      setIsClicked(false);
+      setIsHovered(false);
+    };
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    document.addEventListener("mousedown", onAway);
+    document.addEventListener("touchstart", onAway);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+      document.removeEventListener("mousedown", onAway);
+      document.removeEventListener("touchstart", onAway);
+    };
+  }, [isOpen, place]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        aria-label="What is an app password?"
+        aria-expanded={isOpen}
+        className="flex items-center text-ink-3 transition-colors hover:text-ink"
+      >
+        <HelpCircle size={12} className="cursor-pointer" />
+      </button>
+      {isOpen &&
+        pos &&
+        createPortal(
+          <div
+            ref={popRef}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            style={{ position: "fixed", left: pos.left, bottom: pos.bottom, zIndex: 70 }}
+          >
+            <TooltipShell width={240} apexX={pos.apexX}>
+              <p className="text-[11px] leading-relaxed text-ink-3">
+                Requires a secure App Password with DM access. Your master password is never shared.
+              </p>
+              <p className="mt-2 text-[11px] leading-relaxed">
+                <a
+                  href={APP_PASSWORD_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent font-medium hover:underline inline-flex items-center gap-0.5"
+                >
+                  Create one on Bluesky →
+                </a>
+              </p>
+            </TooltipShell>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 };
 
@@ -403,29 +531,7 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
                     <span className="font-mono text-[10px] uppercase tracking-wide text-ink-3">
                       App password
                     </span>
-                    <div className="group relative flex items-center">
-                      <HelpCircle
-                        size={12}
-                        className="cursor-help text-ink-3 transition-colors hover:text-ink"
-                      />
-                      <div className="absolute bottom-full left-[-80px] z-50 pb-2.5 w-60 transition-all duration-200 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
-                        <TooltipShell width={240} apexX={86}>
-                          <p className="text-[11px] leading-relaxed text-ink-3">
-                            Requires a secure App Password with DM access. Your master password is never shared.
-                          </p>
-                          <p className="mt-2 text-[11px] leading-relaxed">
-                            <a
-                              href={APP_PASSWORD_URL}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-accent font-medium hover:underline inline-flex items-center gap-0.5"
-                            >
-                              Create one on Bluesky →
-                            </a>
-                          </p>
-                        </TooltipShell>
-                      </div>
-                    </div>
+                    <AppPasswordHelp />
                   </div>
                   <input
                     type="password"
