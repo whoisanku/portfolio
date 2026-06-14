@@ -35,6 +35,7 @@ const MediaCarousel = ({
               src={image.thumb}
               alt={image.alt || "Post image"}
               loading="lazy"
+              decoding="async"
               className="h-full w-full object-cover"
             />
           </button>
@@ -46,7 +47,7 @@ const MediaCarousel = ({
         type="button"
         onClick={() => go(-1)}
         aria-label="Previous image"
-        className="absolute top-1/2 left-2 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/45 text-white/90 backdrop-blur-sm transition-colors hover:text-accent"
+        className="absolute top-1/2 left-2 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/60 text-white/90 transition-colors hover:text-accent"
       >
         <ChevronLeft size={17} className="-translate-x-[1px]" />
       </button>
@@ -54,13 +55,13 @@ const MediaCarousel = ({
         type="button"
         onClick={() => go(1)}
         aria-label="Next image"
-        className="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/45 text-white/90 backdrop-blur-sm transition-colors hover:text-accent"
+        className="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/60 text-white/90 transition-colors hover:text-accent"
       >
         <ChevronRight size={17} className="translate-x-[1px]" />
       </button>
 
       {/* Counter */}
-      <span className="absolute top-2.5 right-2.5 rounded-full bg-black/55 px-2 py-0.5 font-mono text-[10px] tabular-nums text-white/90 backdrop-blur-sm">
+      <span className="absolute top-2.5 right-2.5 rounded-full bg-black/65 px-2 py-0.5 font-mono text-[10px] tabular-nums text-white/90">
         {index + 1}/{count}
       </span>
 

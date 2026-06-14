@@ -34,6 +34,9 @@ const VideoPlayer = ({ video }: { video: FeedVideo }) => {
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // `timeupdate` fires ~30–60×/s; throttle React state to ~4×/s so an in-view
+  // autoplaying video doesn't re-render every frame and stutter page scroll.
+  const lastTimeSyncRef = useRef(0);
 
   // Attach the HLS stream (Safari plays m3u8 natively; others need hls.js)
   useEffect(() => {
@@ -183,7 +186,13 @@ const VideoPlayer = ({ video }: { video: FeedVideo }) => {
         onClick={togglePlay}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+        onTimeUpdate={(e) => {
+          const now = performance.now();
+          if (now - lastTimeSyncRef.current >= 250) {
+            lastTimeSyncRef.current = now;
+            setTime(e.currentTarget.currentTime);
+          }
+        }}
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
         className="block h-full w-full cursor-pointer object-cover"
       />
@@ -194,7 +203,7 @@ const VideoPlayer = ({ video }: { video: FeedVideo }) => {
           type="button"
           onClick={togglePlay}
           aria-label="Play video"
-          className="absolute inset-0 m-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white backdrop-blur-sm transition-transform hover:scale-105"
+          className="absolute inset-0 m-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white transition-transform hover:scale-105"
         >
           <Play size={20} className="translate-x-[1.5px]" />
         </button>

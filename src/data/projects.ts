@@ -30,9 +30,13 @@ export const projects: Project[] = [
     },
   },
   {
-    title: "Waverly",
+    title: "LensPool",
     description:
-      "Productivity extension where I added background jobs, reworked the UI and modernized the build pipeline.",
-    url: "https://github.com/waverly",
+      "Marketplace for Lens Protocol usernames with listings, offers, wallet flows and on-chain ownership details.",
+    url: "https://github.com/Aryog/lenspool",
+    screenshotStack: {
+      front: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/lenspool-front",
+      back: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/lenspool-back",
+    },
   },
 ];

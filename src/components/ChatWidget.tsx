@@ -27,6 +27,22 @@ type Phase = "loading" | "signed-out" | "signed-in";
 const APP_PASSWORD_URL = "https://bsky.app/settings/app-passwords";
 const SIGNUP_URL = "https://bsky.app/";
 const POLL_MS = 4000;
+/** Distance from the bottom (px) within which we still auto-follow new messages. */
+const STICK_THRESHOLD = 80;
+/** Scroll position from the top (px) that triggers loading older history. */
+const LOAD_OLDER_THRESHOLD = 64;
+
+/** Merge message lists, de-duplicating by id and sorting oldest-first by sentAt. */
+function mergeMessages(a: ChatMessage[], b: ChatMessage[]): ChatMessage[] {
+  const byId = new Map<string, ChatMessage>();
+  for (const m of a) byId.set(m.id, m);
+  for (const m of b) byId.set(m.id, m);
+  return [...byId.values()].sort((x, y) => {
+    const sx = typeof x.sentAt === "string" ? x.sentAt : "";
+    const sy = typeof y.sentAt === "string" ? y.sentAt : "";
+    return sx < sy ? -1 : sx > sy ? 1 : 0;
+  });
+}
 
 const TooltipShell = ({
   width,
@@ -116,6 +132,17 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [convoError, setConvoError] = useState<string | null>(null);
 
+  // Upward pagination of older history.
+  const [olderCursor, setOlderCursor] = useState<string | undefined>(undefined);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+
+  // Scroll bookkeeping: are we pinned to the bottom, and what should the next
+  // render do (jump to bottom, or hold position after prepending older msgs).
+  const atBottomRef = useRef(true);
+  const scrollIntentRef = useRef<"bottom" | "preserve" | null>(null);
+  const prevScrollHeightRef = useRef<number | null>(null);
+
   // login form
   const [handle, setHandle] = useState("");
   const [appPassword, setAppPassword] = useState("");
@@ -128,17 +155,42 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  /** Open the owner conversation and load its history. */
+  /** Open the owner conversation and load its most recent page. */
   const loadConvo = useCallback(async (agent: AtpAgent) => {
     setConvoError(null);
     try {
       const id = await getOwnerConvoId(agent);
       setConvoId(id);
-      setMessages(await fetchMessages(agent, id));
+      const page = await fetchMessages(agent, id);
+      atBottomRef.current = true;
+      scrollIntentRef.current = "bottom";
+      setMessages(page.messages);
+      setOlderCursor(page.cursor);
+      setHasMore(Boolean(page.cursor));
     } catch (err) {
       setConvoError(friendlyChatError(err));
     }
   }, []);
+
+  /** Prepend the next older page, holding the visible scroll position. */
+  const loadOlder = useCallback(async () => {
+    const agent = agentRef.current;
+    if (!agent || !convoId || !olderCursor || loadingOlder) return;
+    setLoadingOlder(true);
+    const container = scrollContainerRef.current;
+    prevScrollHeightRef.current = container ? container.scrollHeight : null;
+    try {
+      const page = await fetchMessages(agent, convoId, olderCursor);
+      scrollIntentRef.current = "preserve";
+      setMessages((prev) => mergeMessages(page.messages, prev));
+      setOlderCursor(page.cursor);
+      setHasMore(Boolean(page.cursor));
+    } catch {
+      /* leave hasMore set so the user can retry by scrolling up again */
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [convoId, olderCursor, loadingOlder]);
 
   // Restore an existing session on first mount.
   useEffect(() => {
@@ -167,7 +219,16 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
     if (!agent) return;
     const tick = async () => {
       try {
-        setMessages(await fetchMessages(agent, convoId));
+        const page = await fetchMessages(agent, convoId);
+        setMessages((prev) => {
+          const merged = mergeMessages(prev, page.messages);
+          // Only follow new arrivals if the reader is already at the bottom —
+          // otherwise leave their scroll position untouched.
+          if (merged.length > prev.length && atBottomRef.current) {
+            scrollIntentRef.current = "bottom";
+          }
+          return merged;
+        });
       } catch {
         /* transient — next tick retries */
       }
@@ -176,15 +237,21 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
     return () => clearInterval(interval);
   }, [open, phase, convoId]);
 
-  // Keep the latest message in view.
-  useEffect(() => {
-    if (open && phase === "signed-in") {
-      const container = scrollContainerRef.current;
-      if (container) {
-        container.scrollTop = container.scrollHeight;
-      }
+  // Apply the pending scroll intent after the message list renders: jump to the
+  // bottom for new/sent messages, or hold the viewport steady when older history
+  // was prepended. No intent → don't touch the user's scroll position.
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const intent = scrollIntentRef.current;
+    scrollIntentRef.current = null;
+    if (intent === "bottom") {
+      container.scrollTop = container.scrollHeight;
+    } else if (intent === "preserve" && prevScrollHeightRef.current != null) {
+      container.scrollTop += container.scrollHeight - prevScrollHeightRef.current;
+      prevScrollHeightRef.current = null;
     }
-  }, [messages, open, phase]);
+  }, [messages]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -213,7 +280,10 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
     setDraft("");
     try {
       await sendMessage(agent, convoId, text);
-      setMessages(await fetchMessages(agent, convoId));
+      const page = await fetchMessages(agent, convoId);
+      atBottomRef.current = true;
+      scrollIntentRef.current = "bottom";
+      setMessages((prev) => mergeMessages(prev, page.messages));
     } catch (err) {
       setConvoError(friendlyChatError(err));
       setDraft(text); // restore so nothing is lost
@@ -235,8 +305,22 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
     setMyDid(null);
     setConvoId(null);
     setMessages([]);
+    setOlderCursor(undefined);
+    setHasMore(false);
     setConvoError(null);
     setPhase("signed-out");
+  };
+
+  // Track bottom-stickiness and trigger older-history loads near the top.
+  const handleMessagesScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    atBottomRef.current =
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+      STICK_THRESHOLD;
+    if (container.scrollTop < LOAD_OLDER_THRESHOLD && hasMore && !loadingOlder) {
+      void loadOlder();
+    }
   };
 
   return (
@@ -263,7 +347,6 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
               )}
               <div className="min-w-0 flex-1 leading-tight">
                 <p className="font-mono text-[13px] text-ink">Ankit Bhandari</p>
-                <p className="font-mono text-[10px] text-ink-3">messages land in my inbox</p>
               </div>
               {phase === "signed-in" && (
                 <button
@@ -298,12 +381,6 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
                 onSubmit={handleLogin}
                 className="flex flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4"
               >
-                <div>
-                  <p className="text-sm font-medium text-ink">Message Anku</p>
-                  <p className="mt-0.5 text-[12px] leading-relaxed text-ink-3">
-                    Sign in with your handle to start a conversation.
-                  </p>
-                </div>
 
                 <label className="flex flex-col gap-1">
                   <span className="font-mono text-[10px] uppercase tracking-wide text-ink-3">
@@ -389,7 +466,11 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
 
             {phase === "signed-in" && (
               <>
-                <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+                <div
+                  ref={scrollContainerRef}
+                  onScroll={handleMessagesScroll}
+                  className="flex-1 overflow-y-auto overscroll-contain px-4 py-3"
+                >
                   {convoError ? (
                     <div className="flex h-full items-center justify-center px-4 text-center text-[12px] leading-relaxed text-ink-3">
                       {convoError}
@@ -400,6 +481,17 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2">
+                      {(loadingOlder || hasMore) && (
+                        <div className="flex justify-center py-1.5">
+                          {loadingOlder ? (
+                            <Loader2 size={14} className="animate-spin text-ink-3" />
+                          ) : (
+                            <span className="font-mono text-[10px] uppercase tracking-wide text-ink-3/70">
+                              Scroll up for older
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {messages.map((m) => {
                         const mine = m.sender?.did === myDid;
                         return (

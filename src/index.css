@@ -297,6 +297,16 @@ body {
   object-fit: contain;
 }
 
+/* ─── Posts feed performance ───
+   Skip rendering (layout + paint) for posts scrolled out of view; the browser
+   remembers each one's real height (`auto`) so the scrollbar stays stable. This
+   keeps long image/video feeds smooth instead of repainting every card per
+   scroll frame. */
+.post-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 480px;
+}
+
 /* ─── Section label (mono, with trailing rule) ─── */
 .section-label {
   display: flex;

@@ -93,13 +93,27 @@ export async function getOwnerConvoId(agent: AtpAgent): Promise<string> {
   return data.convo.id;
 }
 
-/** Fetch a conversation's messages, oldest-first for display. */
+export interface MessagePage {
+  /** Messages in this page, oldest-first for display. */
+  messages: ChatMessage[];
+  /** Cursor for the next (older) page, or undefined when the start is reached. */
+  cursor?: string;
+}
+
+/**
+ * Fetch a page of a conversation's messages, oldest-first for display.
+ * Pass the previous page's `cursor` to load older history.
+ */
 export async function fetchMessages(
   agent: AtpAgent,
   convoId: string,
-): Promise<ChatMessage[]> {
-  const { data } = await chat(agent).getMessages({ convoId, limit: 50 });
-  return data.messages.filter(ChatBskyConvoDefs.isMessageView).reverse();
+  cursor?: string,
+): Promise<MessagePage> {
+  const { data } = await chat(agent).getMessages({ convoId, limit: 40, cursor });
+  return {
+    messages: data.messages.filter(ChatBskyConvoDefs.isMessageView).reverse(),
+    cursor: data.cursor,
+  };
 }
 
 /** Send a text message into the conversation. */

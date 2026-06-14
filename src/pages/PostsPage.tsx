@@ -1,5 +1,5 @@
 import { ArrowUp, ArrowUpRight, Pin, ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import ErrorMessage from "../components/ErrorMessage";
 import Loader from "../components/Loader";
 import MediaCarousel from "../components/MediaCarousel";
@@ -138,7 +138,7 @@ const Stat = ({
   </span>
 );
 
-const PostCard = ({
+const PostCard = memo(({
   post,
   onImageClick,
 }: {
@@ -149,7 +149,7 @@ const PostCard = ({
   const external = gif ? null : post.external;
 
   return (
-    <article className="group py-7 first:pt-1">
+    <article className="post-card group py-7 first:pt-1">
       {/* Date line — quiet mono with a snake rule, arrow appears on hover */}
       <header className="flex items-center gap-3">
         {post.pinned && (
@@ -194,6 +194,7 @@ const PostCard = ({
               src={post.images[0].thumb}
               alt={post.images[0].alt || "Post image"}
               loading="lazy"
+              decoding="async"
               className="h-full max-h-[420px] w-full object-cover"
             />
           </button>
@@ -210,6 +211,7 @@ const PostCard = ({
             src={gif.uri}
             alt={gif.title || "GIF"}
             loading="lazy"
+            decoding="async"
             className="block max-h-[360px] max-w-full"
           />
         </div>
@@ -228,6 +230,7 @@ const PostCard = ({
                 src={external.thumb}
                 alt=""
                 loading="lazy"
+                decoding="async"
                 className="h-full w-full object-cover"
               />
             </span>
@@ -258,7 +261,9 @@ const PostCard = ({
       </footer>
     </article>
   );
-};
+});
+
+PostCard.displayName = "PostCard";
 
 const PostsPage = () => {
   const [posts, setPosts] = useState<FeedPost[]>([]);
