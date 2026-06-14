@@ -54,8 +54,11 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // Start signed-out everywhere. In dev, OAuth is bypassed but sign-in is still
+  // explicit (clicking the lock flips to signed-in); in prod we resolve any
+  // persisted session during init below.
   const [status, setStatus] = useState<AuthStatus>(() =>
-    IS_DEV ? "signed-in" : "loading",
+    IS_DEV ? "signed-out" : "loading",
   );
   const [agent, setAgent] = useState<Agent | null>(null);
   const [error, setError] = useState<string | null>(null);
