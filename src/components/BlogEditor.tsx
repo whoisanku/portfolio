@@ -28,6 +28,7 @@ import {
   type FormEvent,
 } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { useDialog } from "./DialogProvider";
 import { createBlogEntry, readingTimeLabel, updateBlogEntry, whtwndUrl } from "../lib/blog";
 import { OWNER_HANDLE } from "../lib/config";
 import { uploadImageToGrove } from "../lib/grove";
@@ -390,6 +391,7 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
   onError,
 }, ref) => {
   const { editingBlog, setEditingBlog } = useAuth();
+  const { prompt: promptDialog } = useDialog();
   // State is hydrated from the entry being edited; AdminModal remounts this
   // component (via key) whenever the edited entry changes.
   const [title, setTitle] = useState(() => editingBlog?.title ?? "");
@@ -631,12 +633,35 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
     setTimeout(updateActiveStyles, 10);
   };
 
-  const insertLink = () => {
-    focusEditor();
-    const url = prompt("Enter URL:");
+  const insertLink = async () => {
+    // Capture the selection before the dialog steals focus — without this the
+    // contentEditable range is gone by the time the URL comes back.
+    const selection = window.getSelection();
+    const savedRange =
+      selection &&
+      selection.rangeCount > 0 &&
+      editorRef.current?.contains(selection.anchorNode)
+        ? selection.getRangeAt(0).cloneRange()
+        : null;
+    const hadSelectedText = !!getSelectedText();
+
+    const url = await promptDialog({
+      title: "Insert link",
+      placeholder: "https://example.com",
+      confirmLabel: "Add link",
+      inputType: "url",
+    });
     if (!url) return;
 
-    if (!getSelectedText()) {
+    // Restore focus + the saved selection that the dialog input displaced.
+    focusEditor();
+    if (savedRange) {
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(savedRange);
+    }
+
+    if (!hadSelectedText) {
       exec("insertHTML", `<a href="${escapeHtml(url)}">${escapeHtml(url)}</a>`);
     } else {
       exec("createLink", url);
@@ -708,8 +733,8 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
         break;
       case "k":
         e.preventDefault();
-        insertLink();
-        break;
+        void insertLink();
+        return;
       default:
         return;
     }
@@ -907,7 +932,7 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
-          onClick={insertLink}
+          onClick={() => void insertLink()}
           title="Insert link (Ctrl+K)"
           className={`rounded-md border border-transparent p-1.5 transition-colors ${
             toolbarExpanded ? "" : "hidden sm:block"

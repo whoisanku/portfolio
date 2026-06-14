@@ -1,4 +1,4 @@
-import { Download, Lock, LockOpen, LogOut, User, X } from "lucide-react";
+import { Download, Loader2, Lock, LockOpen, LogOut, User, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import blueskyLogo from "../assets/bsky.svg";
@@ -206,7 +206,7 @@ const DropdownShell = ({ width, children }: { width: number; children: React.Rea
 };
 
 const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
-  const { status, error: authError, signIn, signOut, openModal } = useAuth();
+  const { status, error: authError, signingIn, signIn, signOut, openModal } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const isSignedIn = status === "signed-in";
@@ -311,24 +311,32 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
             <button
               type="button"
               onClick={() => {
-                setDropdownOpen(false);
                 void signIn();
               }}
-              disabled={status === "loading"}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-50"
+              disabled={status === "loading" || signingIn}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-70"
             >
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={OWNER_HANDLE}
-                  className="h-5 w-5 shrink-0 rounded-full object-cover"
-                />
+              {signingIn ? (
+                <>
+                  <Loader2 size={15} className="shrink-0 animate-spin" />
+                  <span>Connecting…</span>
+                </>
               ) : (
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-raise">
-                  <User size={12} className="text-ink-3" />
-                </span>
+                <>
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={OWNER_HANDLE}
+                      className="h-5 w-5 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-raise">
+                      <User size={12} className="text-ink-3" />
+                    </span>
+                  )}
+                  <span>{OWNER_HANDLE}</span>
+                </>
               )}
-              <span>{OWNER_HANDLE}</span>
             </button>
             {authError && <p className="text-xs text-red-500">{authError}</p>}
           </div>

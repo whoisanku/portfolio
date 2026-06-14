@@ -6,6 +6,8 @@ import remarkGfm from "remark-gfm";
 import { useAuth } from "../auth/AuthContext";
 import ErrorMessage from "../components/ErrorMessage";
 import Loader from "../components/Loader";
+import { useDialog } from "../components/DialogProvider";
+import { useToast } from "../components/Toast";
 import {
   deleteBlogEntry,
   getBlogEntry,
@@ -20,17 +22,28 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { agent, status, devMode, setEditingBlog } = useAuth();
+  const { confirm } = useDialog();
+  const toast = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
   const isAdmin = status === "signed-in";
 
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this blog post?")) return;
+    const ok = await confirm({
+      title: "Delete this blog post?",
+      description: "This permanently removes it from WhiteWind and your site. This can't be undone.",
+      confirmLabel: "Delete post",
+      danger: true,
+    });
+    if (!ok) return;
     setIsDeleting(true);
     try {
       await deleteBlogEntry(agent, rkey, devMode);
+      toast.success("Blog deleted");
       navigate("/blog");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete post");
+      toast.error("Couldn't delete post", {
+        description: err instanceof Error ? err.message : undefined,
+      });
     } finally {
       setIsDeleting(false);
     }

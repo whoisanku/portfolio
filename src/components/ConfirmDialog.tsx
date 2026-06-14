@@ -15,6 +15,8 @@ interface ConfirmDialogProps {
   onDismiss?: () => void;
   layer?: "absolute" | "fixed";
   className?: string;
+  /** Extra content between the description and the action row (e.g. a prompt input). */
+  children?: ReactNode;
 }
 
 const actionClasses: Record<NonNullable<ConfirmDialogAction["variant"]>, string> = {
@@ -33,6 +35,7 @@ const ConfirmDialog = ({
   onDismiss,
   layer = "absolute",
   className = "",
+  children,
 }: ConfirmDialogProps) => {
   const titleId = useId();
   const descriptionId = useId();
@@ -47,7 +50,7 @@ const ConfirmDialog = ({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
-        className="w-full max-w-sm rounded-[10px] border border-line bg-paper p-4 shadow-2xl shadow-ink/10"
+        className="w-full max-w-sm rounded-[10px] border border-line bg-paper p-4 shadow-[0_18px_48px_rgba(0,0,0,0.28)]"
         onClick={(event) => event.stopPropagation()}
       >
         <h2 id={titleId} className="font-display text-[20px] font-medium text-ink">
@@ -58,6 +61,7 @@ const ConfirmDialog = ({
             {description}
           </p>
         )}
+        {children}
         <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
           {actions.map((action) => (
             <button

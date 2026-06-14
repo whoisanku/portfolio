@@ -1,19 +1,13 @@
 import { Maximize2, Minimize2, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import BlogEditor, { type BlogEditorHandle } from "./BlogEditor";
 import ConfirmDialog from "./ConfirmDialog";
 import PostComposer from "./PostComposer";
+import { useToast } from "./Toast";
 
 type Tab = "post" | "blog";
-
-interface Published {
-  kind: Tab;
-  url: string;
-  internalUrl?: string;
-}
 
 function buildWavyPath(width: number): string {
   const amplitude = 2.2;
@@ -33,12 +27,11 @@ function buildWavyPath(width: number): string {
 
 const AdminModal = () => {
   const { agent, modalOpen, closeModal, devMode, editingBlog, setEditingBlog } = useAuth();
+  const toast = useToast();
   const [selectedTab, setSelectedTab] = useState<Tab>("post");
   // Editing a blog always forces the blog tab (modal opening is handled by setEditingBlog).
   const tab: Tab = editingBlog ? "blog" : selectedTab;
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [published, setPublished] = useState<Published | null>(null);
   const [savingDraftOnClose, setSavingDraftOnClose] = useState(false);
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
   const blogEditorRef = useRef<BlogEditorHandle>(null);
@@ -70,8 +63,6 @@ const AdminModal = () => {
 
   const finishClose = useCallback(() => {
     setEditingBlog(null);
-    setError(null);
-    setPublished(null);
     setSavingDraftOnClose(false);
     setShowDraftPrompt(false);
     closeModal();
@@ -99,13 +90,16 @@ const AdminModal = () => {
       try {
         await blogEditorRef.current?.saveDraft();
         finishClose();
+        toast.info("Draft saved", { description: "Your work is safe." });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to save draft");
+        toast.error("Couldn't save draft", {
+          description: err instanceof Error ? err.message : undefined,
+        });
         setSavingDraftOnClose(false);
         setShowDraftPrompt(false);
       }
     })();
-  }, [finishClose, savingDraftOnClose]);
+  }, [finishClose, savingDraftOnClose, toast]);
 
   // Escape key to close
   const handleKeyDown = useCallback(
@@ -135,23 +129,19 @@ const AdminModal = () => {
   if (!modalOpen) return null;
   if (!agent && !devMode) return null;
 
-  const handlePostPublished = (url: string) => {
-    setPublished({ kind: "post", url });
-    setError(null);
+  const handlePostPublished = () => {
+    finishClose();
+    toast.success("Post published");
   };
 
-  const handleBlogPublished = (urls: { whitewind: string; internal: string }) => {
-    setPublished({
-      kind: "blog",
-      url: urls.whitewind,
-      internalUrl: urls.internal,
-    });
-    setError(null);
+  const handleBlogPublished = () => {
+    finishClose();
+    toast.success("Blog published");
   };
 
+  // Publish failures keep the editor open so the draft isn't lost on retry.
   const handleError = (msg: string) => {
-    setError(msg);
-    setPublished(null);
+    toast.error("Publish failed", { description: msg });
   };
 
   const modal = (
@@ -180,8 +170,6 @@ const AdminModal = () => {
                     onClick={() => {
                       setSelectedTab(t);
                       if (t === "post" && editingBlog) setEditingBlog(null);
-                      setError(null);
-                      setPublished(null);
                     }}
                     className="group relative"
                   >
@@ -273,41 +261,6 @@ const AdminModal = () => {
               onPublished={handleBlogPublished}
               onError={handleError}
             />
-          )}
-
-          {/* Error */}
-          {error && (
-            <p className="mt-4 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
-              {error}
-            </p>
-          )}
-
-          {/* Success */}
-          {published && (
-            <p className="mt-4 rounded-lg border border-emerald-600/25 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-400">
-              Published!{" "}
-              <a
-                href={published.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline"
-              >
-                View on{" "}
-                {published.kind === "post" ? "Bluesky" : "WhiteWind"}
-              </a>
-              {published.internalUrl && (
-                <>
-                  {" · "}
-                  <Link
-                    to={published.internalUrl}
-                    className="underline"
-                    onClick={handleClose}
-                  >
-                    View on this site
-                  </Link>
-                </>
-              )}
-            </p>
           )}
           </div>
         </div>

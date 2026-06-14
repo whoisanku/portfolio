@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import ErrorMessage from "../components/ErrorMessage";
 import Loader from "../components/Loader";
+import { useDialog } from "../components/DialogProvider";
+import { useToast } from "../components/Toast";
 import {
   deleteBlogEntry,
   excerpt,
@@ -94,18 +96,29 @@ const BlogListPage = () => {
   const [entries, setEntries] = useState<BlogEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { agent, status, devMode, setEditingBlog } = useAuth();
+  const { confirm } = useDialog();
+  const toast = useToast();
   const [deletingRkey, setDeletingRkey] = useState<string | null>(null);
 
   const isAdmin = status === "signed-in";
 
   const handleDelete = async (rkey: string) => {
-    if (!window.confirm("Are you sure you want to delete this blog post?")) return;
+    const ok = await confirm({
+      title: "Delete this blog post?",
+      description: "This permanently removes it from WhiteWind and your site. This can't be undone.",
+      confirmLabel: "Delete post",
+      danger: true,
+    });
+    if (!ok) return;
     setDeletingRkey(rkey);
     try {
       await deleteBlogEntry(agent, rkey, devMode);
       setEntries((prev) => (prev ? prev.filter((e) => e.rkey !== rkey) : null));
+      toast.success("Blog deleted");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete post");
+      toast.error("Couldn't delete post", {
+        description: err instanceof Error ? err.message : undefined,
+      });
     } finally {
       setDeletingRkey(null);
     }
