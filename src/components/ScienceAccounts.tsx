@@ -33,7 +33,7 @@ const accounts: ScienceAccount[] = [
     name: "Cosmos Archive",
     url: "https://x.com/cosmosarcive",
     platform: "x",
-    localAvatar: "https://api.grove.storage/e2126d0bb9c8912dbf0a8d23e60c6859156028015141c26a3f4d16b74ed02d45",
+    localAvatar: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/science-avatar",
   },
 ];
 

@@ -262,7 +262,8 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
                 <span className="h-8 w-8 shrink-0 rounded-full border border-line bg-raise" />
               )}
               <div className="min-w-0 flex-1 leading-tight">
-                <p className="font-mono text-[13px] text-ink">Ankt Bhandari</p>
+                <p className="font-mono text-[13px] text-ink">Ankit Bhandari</p>
+                <p className="font-mono text-[10px] text-ink-3">messages land in my inbox</p>
               </div>
               {phase === "signed-in" && (
                 <button
@@ -298,7 +299,7 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
                 className="flex flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4"
               >
                 <div>
-                  <p className="text-sm font-medium text-ink">Powered by Bluesky Social</p>
+                  <p className="text-sm font-medium text-ink">Message Anku</p>
                   <p className="mt-0.5 text-[12px] leading-relaxed text-ink-3">
                     Sign in with your handle to start a conversation.
                   </p>

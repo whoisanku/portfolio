@@ -43,21 +43,13 @@ const HomePage = () => {
     <div className="flex flex-col gap-28">
       {/* Hero */}
       <section className="flex flex-col gap-7">
-        {avatarUrl ? (
-          <motion.img
-            layoutId="profile-avatar"
-            src={avatarUrl}
-            alt="Ankit Bhandari"
-            className="h-[72px] w-[72px] rounded-full border border-line object-cover"
-            transition={{ type: "spring", stiffness: 380, damping: 30 }}
-          />
-        ) : (
-          <motion.div
-            layoutId="profile-avatar"
-            className="h-[72px] w-[72px] rounded-full border border-line bg-raise"
-            transition={{ type: "spring", stiffness: 380, damping: 30 }}
-          />
-        )}
+        <motion.img
+          layoutId="profile-avatar"
+          src={avatarUrl ?? "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/v1781422173/portfolio/profile"}
+          alt="Ankit Bhandari"
+          className="h-[72px] w-[72px] rounded-full border border-line object-cover"
+          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+        />
         <h1 className="font-display text-[40px] leading-[1.08] font-normal tracking-[-0.01em] text-balance sm:text-[49px]">
           Ankit <em className="italic text-accent">loves</em> designing &amp; building with AI.
         </h1>
@@ -69,7 +61,9 @@ const HomePage = () => {
           <span>Selected work</span>
         </div>
         <div className="flex flex-col">
-          {projects.map((project) => (
+          {projects.map((project, idx) => {
+            const eager = idx === 0;
+            return (
             <a
               key={project.title}
               href={project.url}
@@ -102,6 +96,7 @@ const HomePage = () => {
                       src={stack.back}
                       alt={`${project.title} second screen`}
                       className="project-stack-card project-stack-back cursor-zoom-in"
+                      loading="lazy"
                       draggable={false}
                       onClick={(e) => {
                         e.preventDefault();
@@ -113,6 +108,7 @@ const HomePage = () => {
                       src={stack.front}
                       alt={`${project.title} main screen`}
                       className="project-stack-card project-stack-front cursor-zoom-in"
+                      loading={eager ? "eager" : "lazy"}
                       draggable={false}
                       onClick={(e) => {
                         e.preventDefault();
@@ -130,6 +126,7 @@ const HomePage = () => {
                       src={screenshot}
                       alt={`${project.title} screenshot`}
                       className="project-row-screenshot-img cursor-zoom-in"
+                      loading={eager ? "eager" : "lazy"}
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -147,7 +144,8 @@ const HomePage = () => {
                 </div>
               )}
             </a>
-          ))}
+            );
+          })}
         </div>
       </section>
 

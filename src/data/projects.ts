@@ -15,8 +15,8 @@ export const projects: Project[] = [
       "Move your tweets to Bluesky in a few clicks, processed fully on your device. Featured by Lifehacker, Mashable and more.",
     url: "https://github.com/Nester-xyz/Porto",
     screenshotStack: {
-      front: "https://api.grove.storage/553c929054726e2c5b2bcce5ae94bc327565d2e731da3cec0eb2d89d1fcf38e3",
-      back: "https://api.grove.storage/32835651456c3063e1ddfbfa12c20ed3cf23fb783aa82cbc5cad5a9ad6f8d935",
+      front: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/porto-front",
+      back: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/porto-back",
     },
   },
   {
@@ -25,8 +25,8 @@ export const projects: Project[] = [
       "Decentralized AI routing layer that sends each request to the best provider across cost, speed, quality and privacy.",
     url: "https://thesluice.xyz",
     screenshotStack: {
-      front: "https://api.grove.storage/ccbc75c145bb56dddb6a145bd50536161377948ed455c7c7bbf03fd711f2052c",
-      back: "https://api.grove.storage/dc4495ece1687fc359930615167c37e10169eb16b784e77adb80e4fde3a89ba9",
+      front: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/sluice-front",
+      back: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/sluice-back",
     },
   },
   {

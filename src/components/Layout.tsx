@@ -2,6 +2,8 @@ import { Download, Lock, LockOpen, LogOut, User, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import blueskyLogo from "../assets/bsky.svg";
+
+const LOCAL_AVATAR = "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/v1781422173/portfolio/profile";
 import { useAuth } from "../auth/AuthContext";
 import { OWNER_HANDLE, PUBLIC_API } from "../lib/config";
 import AdminModal from "./AdminModal";
@@ -380,21 +382,13 @@ const Layout = () => {
       <header className="mb-16 flex items-center justify-between gap-4 sm:mb-20">
         {pathname !== "/" ? (
           <Link to="/" className="group flex items-center gap-3">
-            {avatarUrl ? (
-              <motion.img
-                layoutId="profile-avatar"
-                src={avatarUrl}
-                alt="Ankit Bhandari"
-                className="h-9 w-9 rounded-full border border-line object-cover"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-            ) : (
-              <motion.div
-                layoutId="profile-avatar"
-                className="h-9 w-9 rounded-full border border-line bg-raise"
-                transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              />
-            )}
+            <motion.img
+              layoutId="profile-avatar"
+              src={avatarUrl ?? LOCAL_AVATAR}
+              alt="Ankit Bhandari"
+              className="h-9 w-9 rounded-full border border-line object-cover"
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            />
           </Link>
         ) : (
           <div className="h-9 w-9" />
