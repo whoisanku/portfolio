@@ -5,6 +5,9 @@ export interface PressMention {
   url: string;
   logo: string;
   logoHeight?: number;
+  /** Intrinsic width ÷ height. Lets us reserve the logo's box before the
+   *  image loads, so the marquee never reflows or jumps as logos stream in. */
+  aspect: number;
   /** Artwork is light-on-dark; flip it when sitting on light paper. */
   logoInvert?: boolean;
 }
@@ -18,14 +21,19 @@ export const pressMentions: PressMention[] = [
     url: "https://lifehacker.com/tech/use-porto-to-upload-all-your-old-tweets-to-bluesky",
     logo: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/logo-lifehacker",
     logoHeight: 32,
+    aspect: 3.615,
   },
   {
     outlet: "Mashable",
     region: "US",
     title: "Importing your tweets and X posts to Bluesky",
     url: "https://mashable.com/article/bluesky-importing-tweets-x-posts",
-    logo: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/logo-mashable",
+    // Source SVG has a tiny 84×15 nominal canvas, so f_auto rasterizes it
+    // blurry at that size — w_480 makes Cloudinary render the vector large
+    // (crisp at any DPR) before downscaling to the display height.
+    logo: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto,w_480/portfolio/logo-mashable",
     logoHeight: 28,
+    aspect: 5.6,
   },
   {
     outlet: "Popular Science",
@@ -34,6 +42,7 @@ export const pressMentions: PressMention[] = [
     url: "https://www.popsci.com/diy/how-to-leave-twitter-for-bluesky/",
     logo: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/logo-popsci",
     logoHeight: 44,
+    aspect: 2.465,
   },
   {
     outlet: "TechWiser",
@@ -42,6 +51,7 @@ export const pressMentions: PressMention[] = [
     url: "https://techwiser.com/chrome-extensions-to-switch-from-twitter-to-bluesky/",
     logo: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/logo-techwiser",
     logoHeight: 25,
+    aspect: 6.73,
   },
   {
     outlet: "AllThings.How",
@@ -50,6 +60,7 @@ export const pressMentions: PressMention[] = [
     url: "https://allthings.how/how-to-use-porto-to-port-your-tweets-from-x-to-bluesky/",
     logo: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/logo-allthings",
     logoHeight: 34,
+    aspect: 4.51,
   },
   {
     outlet: "Geeknetic",
@@ -58,6 +69,7 @@ export const pressMentions: PressMention[] = [
     url: "https://www.geeknetic.es/Guia/2991/Como-pasarse-a-Bluesky-desde-Twitter-X.html",
     logo: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/logo-geeknetic",
     logoHeight: 30,
+    aspect: 4.275,
     logoInvert: true,
   },
 ];

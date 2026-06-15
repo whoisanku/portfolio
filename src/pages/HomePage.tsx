@@ -162,26 +162,34 @@ const HomePage = () => {
                 className="press-marquee-set"
                 aria-hidden={set > 0 || undefined}
               >
-                {pressMentions.map((mention) => (
-                  <a
-                    key={mention.url}
-                    href={mention.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`press-logo${mention.logoInvert ? " press-logo-flip" : ""}`}
-                    title={mention.title}
-                    aria-label={mention.outlet}
-                    tabIndex={set > 0 ? -1 : undefined}
-                  >
-                    <img
-                      src={mention.logo}
-                      alt={mention.outlet}
-                      style={{ height: mention.logoHeight ?? 28 }}
-                      loading="lazy"
-                      draggable={false}
-                    />
-                  </a>
-                ))}
+                {pressMentions.map((mention) => {
+                  const h = mention.logoHeight ?? 28;
+                  // Reserve the exact box up front so the track width is stable
+                  // from first paint — no reflow/jump as logos stream in.
+                  const w = Math.round(h * mention.aspect);
+                  return (
+                    <a
+                      key={mention.url}
+                      href={mention.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`press-logo${mention.logoInvert ? " press-logo-flip" : ""}`}
+                      title={mention.title}
+                      aria-label={mention.outlet}
+                      tabIndex={set > 0 ? -1 : undefined}
+                    >
+                      <img
+                        src={mention.logo}
+                        alt={mention.outlet}
+                        width={w}
+                        height={h}
+                        style={{ height: h, width: w }}
+                        decoding="async"
+                        draggable={false}
+                      />
+                    </a>
+                  );
+                })}
               </div>
             ))}
           </div>
