@@ -1,59 +1,46 @@
-# Portfolio — anku.bsky.social
+<div align="center">
 
-Personal portfolio built on React 19 + Vite + Tailwind CSS 4, fully powered by
-[AT Protocol](https://atproto.com/). No backend, no database — the Bluesky
-account **is** the CMS.
+# Ankit Bhandari
 
-## How content works
+**Designer & software developer based in Nepal.**  
+Loves building things at the intersection of design and decentralized tech.
 
-| Section | Source |
-| ------- | ------ |
-| Posts (`/posts`) | `app.bsky.feed.getAuthorFeed` from the public AppView |
-| Blogs (`/blog`) | [WhiteWind](https://whtwnd.com) `com.whtwnd.blog.entry` records read straight from the PDS (markdown) |
-| Admin (`/admin`) | atproto **OAuth** sign-in (owner only) to publish posts & blog entries |
+[![Website](https://img.shields.io/badge/ankit404.com.np-000?style=for-the-badge&logo=safari&logoColor=white)](https://ankit404.com.np)
+[![Bluesky](https://img.shields.io/badge/@anku.bsky.social-0285FF?style=for-the-badge&logo=bluesky&logoColor=white)](https://bsky.app/profile/anku.bsky.social)
 
-Blog entries written from `/admin` are standard WhiteWind records, so they are
-also readable/editable on whtwnd.com with the same account.
+</div>
 
-## Development
+---
 
-```bash
-npm install
-npm run dev      # http://localhost:5173 (OAuth uses the loopback client, no setup needed)
-npm run build    # type-check + production build
-npm run lint
-```
+## Selected work
 
-> OAuth note (dev): atproto loopback clients only work on IP origins, so the
-> library redirects `localhost` → `127.0.0.1` when you start a sign-in. That's
-> expected.
+### [Porto](https://github.com/Nester-xyz/Porto)
+Move your tweets to Bluesky in a few clicks — processed fully on your device, no server involved.  
+Featured by **Lifehacker**, **Mashable**, **Popular Science**, and more.
 
-## Deploying
+| Publication | Coverage |
+|---|---|
+| [Lifehacker](https://lifehacker.com/tech/use-porto-to-upload-all-your-old-tweets-to-bluesky) | Use Porto to upload all your old tweets to Bluesky |
+| [Mashable](https://mashable.com/article/bluesky-importing-tweets-x-posts) | Importing your tweets and X posts to Bluesky |
+| [Popular Science](https://www.popsci.com/diy/how-to-leave-twitter-for-bluesky/) | How to leave Twitter for Bluesky |
+| [TechWiser](https://techwiser.com/chrome-extensions-to-switch-from-twitter-to-bluesky/) | 5 Chrome extensions to switch from X to Bluesky |
+| [AllThings.How](https://allthings.how/how-to-use-porto-to-port-your-tweets-from-x-to-bluesky/) | How to use Porto to port your tweets from X to Bluesky |
+| [Geeknetic](https://www.geeknetic.es/Guia/2991/Como-pasarse-a-Bluesky-desde-Twitter-X.html) | Cómo pasarse a Bluesky desde Twitter (X) |
 
-1. **OAuth client metadata** — edit
-   [`public/oauth/client-metadata.json`](public/oauth/client-metadata.json) and
-   replace every URL with your deployed origin. `client_id` must be exactly
-   `https://<your-domain>/oauth/client-metadata.json` and `redirect_uris` must
-   contain `https://<your-domain>/admin`.
-2. **SPA fallback** — the router uses history URLs (`/blog/...`, `/admin`), so
-   the host must rewrite unknown paths to `index.html` (Vercel/Netlify do this
-   automatically for SPAs; GitHub Pages needs a 404.html fallback).
+---
 
-## Configuration
+### [Sluice](https://thesluice.xyz)
+Decentralized AI routing layer that sends each request to the best provider across cost, speed, quality, and privacy.
 
-Everything is keyed off [`src/lib/config.ts`](src/lib/config.ts):
+---
 
-- `OWNER_HANDLE` — the Bluesky account that owns the site (feed, blogs, admin).
-- `BLOG_COLLECTION` — blog record collection (WhiteWind by default; swap for
-  `site.standard.document` if you migrate to standard.site later).
+### [LensPool](https://github.com/Aryog/lenspool)
+Marketplace for Lens Protocol usernames — listings, offers, wallet flows, and on-chain ownership details.
 
-## Structure
+---
 
-```
-src/
-  auth/        AuthContext — OAuth session, owner check, sign in/out
-  components/  Layout, OrbitNav, BackgroundDots, AnimatedSign, Loader…
-  data/        projects + press mentions
-  lib/         config, atproto helpers, blog (WhiteWind), feed, oauth client
-  pages/       Home, BlogList, BlogPost, Posts, Admin
-```
+<div align="center">
+
+Say hi on [Bluesky](https://bsky.app/profile/anku.bsky.social) or see everything at [ankit404.com.np](https://ankit404.com.np)
+
+</div>
