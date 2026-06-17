@@ -1,8 +1,8 @@
 {
-  "client_id": "https://anku.vercel.app/oauth/client-metadata.json",
+  "client_id": "https://ankit404.com.np/oauth/client-metadata.json",
   "client_name": "Ankit Bhandari - Portfolio",
-  "client_uri": "https://anku.vercel.app",
-  "redirect_uris": ["https://anku.vercel.app/oauth/callback"],
+  "client_uri": "https://ankit404.com.np",
+  "redirect_uris": ["https://ankit404.com.np/oauth/callback"],
   "scope": "atproto transition:generic",
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
