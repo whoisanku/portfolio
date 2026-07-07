@@ -50,8 +50,21 @@
     content="Ankit Bhandari portfolio thumbnail with profile photo and hero headline."
   />
   <meta name="twitter:creator" content="@whoisanku" />
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF8F3" />
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181511" />
+  <meta name="theme-color" content="#f6f7f9" />
+  <script>
+    // Stamp the theme before first paint so there is no flash of the wrong
+    // scheme: stored preference wins, else the OS scheme. src/lib/theme.ts
+    // owns every later change.
+    (function () {
+      var stored = null;
+      try { stored = localStorage.getItem("theme"); } catch (e) { /* privacy mode */ }
+      var dark = stored === "dark" || (stored !== "light" &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute("content", dark ? "#101216" : "#f6f7f9");
+    })();
+  </script>
   <title>Ankit Bhandari</title>
 </head>
 

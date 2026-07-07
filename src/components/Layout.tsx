@@ -9,6 +9,7 @@ import { OWNER_HANDLE, PUBLIC_API } from "../lib/config";
 import AdminModal from "./AdminModal";
 import AnimatedSign from "./AnimatedSign";
 import ChatWidget from "./ChatWidget";
+import ThemeToggle from "./ThemeToggle";
 import { AnimatePresence, motion } from "motion/react";
 
 const navItems = [
@@ -127,7 +128,7 @@ const TopNav = () => {
           <path
             d={underline.path}
             fill="none"
-            stroke="var(--color-accent, #e8613a)"
+            stroke="var(--color-accent, #2a5fd0)"
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -420,6 +421,7 @@ const Layout = () => {
         <div className="flex items-center gap-10">
           <TopNav />
           <div className="flex items-center gap-1">
+            <ThemeToggle />
             <div className="relative">
               <a
                 href="/resume/Ankit Bhandari Resume.pdf.pdf"

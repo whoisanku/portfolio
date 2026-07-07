@@ -1,33 +1,36 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* Make Tailwind's dark: variant follow the manual theme attribute */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* ───────────────────────── Theme tokens ─────────────────────────
-   Editorial palette. Follows the OS color scheme — no toggle. */
+   Slate & Cobalt palette — cool neutral paper, blue accent.
+   An inline script in index.html stamps <html data-theme> before first
+   paint (stored preference, else OS scheme); the topbar toggle flips it. */
 :root {
-  --accent: #c05b33;
+  --accent: #2a5fd0;
 
   /* light (default) */
-  --bg: #faf8f3;
-  --bg-raise: #f3f0e8;
-  --ink: #211d18;
-  --ink-2: #5c564c;
-  --ink-3: #948c7e;
-  --line: #e3ded2;
+  --bg: #f6f7f9;
+  --bg-raise: #eceef3;
+  --ink: #191d24;
+  --ink-2: #545b69;
+  --ink-3: #878e9c;
+  --line: #dcdfe7;
   --accent-ink: var(--accent);
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #181511;
-    --bg-raise: #211d18;
-    --ink: #ede8df;
-    --ink-2: #a8a091;
-    --ink-3: #6e675b;
-    --line: #312c24;
-    --accent-ink: color-mix(in oklch, var(--accent) 78%, white);
-    color-scheme: dark;
-  }
+:root[data-theme="dark"] {
+  --bg: #101216;
+  --bg-raise: #191d24;
+  --ink: #e7eaf0;
+  --ink-2: #9ba3b3;
+  --ink-3: #636b7c;
+  --line: #292e38;
+  --accent-ink: #8fb0f5;
+  color-scheme: dark;
 }
 
 /* Expose tokens as Tailwind utilities (bg-paper, text-ink-2, border-line…) */
@@ -447,17 +450,15 @@ body {
   transform: scale(1.03);
 }
 
-@media (prefers-color-scheme: dark) {
-  /* lift the dimmed card so it stays readable on dark paper */
-  .project-stack-back {
-    opacity: 0.7;
-    filter: grayscale(0.85) brightness(1.3);
-  }
+/* lift the dimmed card so it stays readable on dark paper */
+:root[data-theme="dark"] .project-stack-back {
+  opacity: 0.7;
+  filter: grayscale(0.85) brightness(1.3);
+}
 
-  .project-stack:has(.project-stack-back:hover) .project-stack-front {
-    opacity: 0.7;
-    filter: grayscale(0.85) brightness(1.3);
-  }
+:root[data-theme="dark"] .project-stack:has(.project-stack-back:hover) .project-stack-front {
+  opacity: 0.7;
+  filter: grayscale(0.85) brightness(1.3);
 }
 
 /* Mobile: smaller stack; no hover to reveal, so keep the back card readable */
@@ -621,19 +622,17 @@ body {
   --logo-hover: invert(1) hue-rotate(180deg);
 }
 
-@media (prefers-color-scheme: dark) {
-  /* Dark artwork inverts to stay visible; hover re-inverts with a hue
-     rotation so brand colors survive the lightness flip. */
-  .press-logo img {
-    --logo-rest: grayscale(1) invert(1);
-    --logo-hover: invert(1) hue-rotate(180deg);
-    opacity: 0.62;
-  }
+/* Dark artwork inverts to stay visible; hover re-inverts with a hue
+   rotation so brand colors survive the lightness flip. */
+:root[data-theme="dark"] .press-logo img {
+  --logo-rest: grayscale(1) invert(1);
+  --logo-hover: invert(1) hue-rotate(180deg);
+  opacity: 0.62;
+}
 
-  .press-logo-flip img {
-    --logo-rest: grayscale(1);
-    --logo-hover: none;
-  }
+:root[data-theme="dark"] .press-logo-flip img {
+  --logo-rest: grayscale(1);
+  --logo-hover: none;
 }
 
 /* Mobile: shorter belt in view, so drift quicker to keep it lively */
