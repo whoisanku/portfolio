@@ -651,7 +651,7 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-paper shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition-transform hover:scale-105 active:scale-95"
+        className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-paper shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition-transform fine:hover:scale-105 active:scale-95"
         aria-label={open ? "Close chat" : "Message Ankit"}
       >
         <AnimatePresence mode="wait" initial={false}>

@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { AlertCircle, CheckCircle2, Info, Loader2, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   createContext,
   useCallback,
@@ -173,6 +173,7 @@ function ToastViewport({
   toasts: ToastItem[];
   onDismiss: (id: string) => void;
 }) {
+  const prefersReduced = useReducedMotion();
   if (typeof document === "undefined") return null;
 
   return createPortal(
@@ -184,11 +185,15 @@ function ToastViewport({
           return (
             <motion.div
               key={t.id}
-              layout
-              initial={{ opacity: 0, y: 16, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 24, scale: 0.96, transition: { duration: 0.18 } }}
-              transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              layout={!prefersReduced}
+              initial={prefersReduced ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.96 }}
+              animate={prefersReduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+              exit={
+                prefersReduced
+                  ? { opacity: 0, transition: { duration: 0.18 } }
+                  : { opacity: 0, x: 24, scale: 0.96, transition: { duration: 0.18 } }
+              }
+              transition={prefersReduced ? { duration: 0.2 } : { type: "spring", stiffness: 380, damping: 32 }}
               className="pointer-events-auto w-full overflow-hidden rounded-xl border border-line bg-paper shadow-[0_14px_38px_rgba(0,0,0,0.22)] sm:w-[360px]"
             >
               <div className="flex items-start gap-3 px-4 py-3">

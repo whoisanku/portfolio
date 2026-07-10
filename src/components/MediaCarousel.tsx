@@ -21,7 +21,7 @@ const MediaCarousel = ({
     <div className="relative mt-4 overflow-hidden rounded-xl border border-line">
       {/* Sliding track */}
       <div
-        className="flex transition-transform duration-400 ease-out"
+        className="flex transition-transform duration-300 ease-out"
         style={{ transform: `translateX(-${index * 100}%)` }}
       >
         {images.map((image, i) => (
@@ -73,7 +73,7 @@ const MediaCarousel = ({
             type="button"
             onClick={() => setIndex(i)}
             aria-label={`Go to image ${i + 1}`}
-            className={`h-1.5 rounded-full cursor-pointer transition-all duration-300 ${
+            className={`h-1.5 rounded-full cursor-pointer transition-[width,background-color] duration-300 ${
               i === index ? "w-4 bg-accent" : "w-1.5 bg-white/50 hover:bg-white/80"
             }`}
           />

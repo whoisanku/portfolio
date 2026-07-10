@@ -203,7 +203,7 @@ const VideoPlayer = ({ video }: { video: FeedVideo }) => {
           type="button"
           onClick={togglePlay}
           aria-label="Play video"
-          className="absolute inset-0 m-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white transition-transform hover:scale-105"
+          className="absolute inset-0 m-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white transition-transform fine:hover:scale-105 active:scale-95"
         >
           <Play size={20} className="translate-x-[1.5px]" />
         </button>

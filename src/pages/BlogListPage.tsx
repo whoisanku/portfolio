@@ -229,7 +229,7 @@ const BlogListPage = () => {
                     </h2>
                     <ArrowUpRight
                       size={16}
-                      className="shrink-0 text-ink-3 opacity-0 -translate-x-1 transition-all duration-200 group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
+                      className="shrink-0 text-ink-3 opacity-0 -translate-x-1 transition duration-200 group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
                     />
                   </div>
                   <p className="line-clamp-2 text-pretty text-[13.5px] leading-[1.55] text-ink-2">
@@ -242,7 +242,7 @@ const BlogListPage = () => {
                     <img
                       src={cover}
                       alt={entry.title}
-                      className="project-row-screenshot-img transition-transform duration-500 ease-out group-hover:scale-[1.05]"
+                      className="project-row-screenshot-img transition-transform duration-[250ms] ease-out fine:group-hover:scale-[1.05]"
                     />
                   </div>
                 )}

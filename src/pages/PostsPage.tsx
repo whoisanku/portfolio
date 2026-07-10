@@ -1,5 +1,6 @@
 import { ArrowUp, ArrowUpRight, Pin, ChevronLeft, ChevronRight } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import ErrorMessage from "../components/ErrorMessage";
 import Loader from "../components/Loader";
 import MediaCarousel from "../components/MediaCarousel";
@@ -168,7 +169,7 @@ const PostCard = memo(({
           rel="noopener noreferrer"
           aria-label="Open on Bluesky"
           title="Open on Bluesky"
-          className="rounded-md p-1 text-ink-3 opacity-0 transition-all group-hover:opacity-100 hover:text-accent focus-visible:opacity-100"
+          className="rounded-md p-1 text-ink-3 opacity-0 transition group-hover:opacity-100 hover:text-accent focus-visible:opacity-100"
         >
           <ArrowUpRight size={14} />
         </a>
@@ -266,6 +267,7 @@ const PostCard = memo(({
 PostCard.displayName = "PostCard";
 
 const PostsPage = () => {
+  const prefersReduced = useReducedMotion();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [cursor, setCursor] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
@@ -388,19 +390,30 @@ const PostsPage = () => {
         type="button"
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         aria-label="Back to top"
-        className={`fixed right-5 bottom-20 z-40 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-line bg-paper text-ink-3 shadow-[0_4px_18px_rgba(0,0,0,0.12)] transition-all duration-300 hover:border-accent hover:text-accent ${showTop ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
+        className={`pressable fixed right-5 bottom-20 z-40 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-line bg-paper text-ink-3 shadow-[0_4px_18px_rgba(0,0,0,0.12)] transition duration-300 hover:border-accent hover:text-accent ${showTop ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
           }`}
       >
         <ArrowUp size={20} />
       </button>
 
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 transition-all duration-300 animate-fade-in"
-          onClick={() => setLightbox(null)}
-        >
-          {/* Active Image Container */}
-          <div className="relative flex max-h-[78vh] max-w-full items-center justify-center">
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4"
+            onClick={() => setLightbox(null)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {/* Active Image Container — centered modal, scales in from 0.96 */}
+            <motion.div
+              className="relative flex max-h-[78vh] max-w-full items-center justify-center"
+              initial={prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+              animate={prefersReduced ? { opacity: 1 } : { opacity: 1, scale: 1 }}
+              exit={prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
             {!lightboxLoaded && (
               <span
                 className="absolute h-9 w-9 animate-spin rounded-full border-2 border-white/25 border-t-white/90"
@@ -415,13 +428,13 @@ const PostsPage = () => {
                 }`}
               onClick={(e) => e.stopPropagation()}
             />
-          </div>
+            </motion.div>
 
-          {/* Bottom Controls Bar */}
-          <div
-            className="absolute bottom-6 left-1/2 z-55 flex -translate-x-1/2 items-center gap-4"
-            onClick={(e) => e.stopPropagation()}
-          >
+            {/* Bottom Controls Bar */}
+            <div
+              className="absolute bottom-6 left-1/2 z-55 flex -translate-x-1/2 items-center gap-4"
+              onClick={(e) => e.stopPropagation()}
+            >
             {lightbox.images.length > 1 && (
               <>
                 {/* Previous Button */}
@@ -439,7 +452,7 @@ const PostsPage = () => {
                         : null,
                     );
                   }}
-                  className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/60 hover:text-accent focus:outline-none"
+                  className="pressable flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/60 hover:text-accent focus:outline-none"
                   aria-label="Previous image"
                 >
                   <ChevronLeft size={20} />
@@ -462,7 +475,7 @@ const PostsPage = () => {
                           setLightboxLoaded(false);
                           setLightbox((prev) => (prev ? { ...prev, index: i } : null));
                         }}
-                        className={`h-2 rounded-full cursor-pointer transition-all duration-300 ${i === lightbox.index ? "w-5 bg-accent" : "w-2 bg-white/40 hover:bg-white/75"
+                        className={`h-2 rounded-full cursor-pointer transition-[width,background-color] duration-300 ${i === lightbox.index ? "w-5 bg-accent" : "w-2 bg-white/40 hover:bg-white/75"
                           }`}
                         aria-label={`Go to image ${i + 1}`}
                       />
@@ -485,16 +498,17 @@ const PostsPage = () => {
                         : null,
                     );
                   }}
-                  className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/60 hover:text-accent focus:outline-none"
+                  className="pressable flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/60 hover:text-accent focus:outline-none"
                   aria-label="Next image"
                 >
                   <ChevronRight size={20} />
                 </button>
               </>
             )}
-          </div>
-        </div>
-      )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

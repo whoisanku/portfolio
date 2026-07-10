@@ -1,12 +1,21 @@
-import { motion } from "motion/react";
+import { motion, useInView, useReducedMotion } from "motion/react";
+import { useRef } from "react";
 
 /**
- * Hand-drawn "anku" signature, looping draw-in/draw-out.
- * Inherits its color — wrap it in e.g. `text-accent`.
+ * Hand-drawn "anku" signature. Draws itself once — stroke first, then inks in —
+ * the moment it scrolls into view, then rests filled. (It used to loop a 5s
+ * draw/erase forever, exactly the slow ambient oscillation to avoid, and a
+ * problem under reduced motion.) Inherits its color — wrap it in text-accent.
  */
 const AnimatedSign = () => {
+  const ref = useRef<SVGSVGElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-40px" });
+  const prefersReduced = useReducedMotion();
+  const drawn = prefersReduced || inView;
+
   return (
     <svg
+      ref={ref}
       className="h-auto w-full"
       viewBox="8.0 10 90 40"
       fill="none"
@@ -19,18 +28,16 @@ const AnimatedSign = () => {
         stroke="currentColor"
         strokeWidth="0.5"
         fill="currentColor"
-        initial={{ pathLength: 0, fillOpacity: 0 }}
-        animate={{
-          pathLength: [0, 1, 1, 1, 0, 0],
-          fillOpacity: [0, 0, 1, 1, 0, 0],
-        }}
-        transition={{
-          duration: 5,
-          ease: "easeInOut",
-          times: [0, 0.4, 0.5, 0.75, 0.85, 1],
-          repeat: Infinity,
-          repeatType: "loop",
-        }}
+        initial={prefersReduced ? { pathLength: 1, fillOpacity: 1 } : { pathLength: 0, fillOpacity: 0 }}
+        animate={drawn ? { pathLength: 1, fillOpacity: 1 } : { pathLength: 0, fillOpacity: 0 }}
+        transition={
+          prefersReduced
+            ? { duration: 0 }
+            : {
+                pathLength: { duration: 1.6, ease: [0.16, 1, 0.3, 1] },
+                fillOpacity: { duration: 0.8, delay: 1.25, ease: "easeOut" },
+              }
+        }
       />
     </svg>
   );

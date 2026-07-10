@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useOutletContext } from "react-router-dom";
 import ScienceAccounts from "../components/ScienceAccounts";
 import { pressMentions } from "../data/press";
@@ -9,6 +9,7 @@ import { projects } from "../data/projects";
 
 const HomePage = () => {
   const { avatarUrl } = useOutletContext<{ avatarUrl: string | null }>();
+  const prefersReduced = useReducedMotion();
   const [lightbox, setLightbox] = useState<string | null>(null);
 
   // Keyboard navigation for lightbox (Escape to close)
@@ -48,7 +49,7 @@ const HomePage = () => {
           src={avatarUrl ?? "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/v1781422173/portfolio/profile"}
           alt="Ankit Bhandari"
           className="h-[72px] w-[72px] rounded-full border border-line object-cover"
-          transition={{ type: "spring", stiffness: 380, damping: 30 }}
+          transition={prefersReduced ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 30 }}
         />
         <h1 className="font-display text-[40px] leading-[1.08] font-normal tracking-[-0.01em] text-balance sm:text-[49px]">
           Ankit <em className="italic text-accent">loves</em> designing &amp; software development.
@@ -79,7 +80,7 @@ const HomePage = () => {
                   </h3>
                   <ArrowUpRight
                     size={16}
-                    className="shrink-0 text-ink-3 opacity-0 -translate-x-1 transition-all duration-200 group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
+                    className="shrink-0 text-ink-3 opacity-0 -translate-x-1 transition duration-200 group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
                   />
                 </div>
                 <p className="text-pretty text-[13.5px] leading-[1.55] text-ink-2">
@@ -247,23 +248,31 @@ const HomePage = () => {
       {/* Science & astronomy — accounts I run */}
       <ScienceAccounts />
 
-      {/* Fullscreen Lightbox */}
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 transition-all duration-300 animate-fade-in"
-          onClick={() => setLightbox(null)}
-        >
-          {/* Active Image Container */}
-          <div className="relative flex max-h-[85vh] max-w-full items-center justify-center">
-            <img
+      {/* Fullscreen Lightbox — centered modal: fade the scrim, scale the image
+          in from 0.96 (never scale(0)). */}
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4"
+            onClick={() => setLightbox(null)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <motion.img
               src={lightbox}
               alt="Project screen"
               className="max-h-[85vh] max-w-full rounded-lg object-contain select-none shadow-[0_24px_64px_rgba(0,0,0,0.5)]"
               onClick={(e) => e.stopPropagation()}
+              initial={prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+              animate={prefersReduced ? { opacity: 1 } : { opacity: 1, scale: 1 }}
+              exit={prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             />
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

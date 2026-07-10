@@ -82,7 +82,7 @@ const ScienceAccounts = () => {
               href={account.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group inline-flex items-center gap-2.5 rounded-full border border-line bg-raise/40 py-1 pr-3.5 pl-1 transition-all hover:bg-raise"
+              className="group inline-flex items-center gap-2.5 rounded-full border border-line bg-raise/40 py-1 pr-3.5 pl-1 transition hover:bg-raise"
             >
               <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-line bg-raise">
                 {avatar ? (
@@ -90,10 +90,10 @@ const ScienceAccounts = () => {
                     src={avatar}
                     alt=""
                     loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-115"
+                    className="h-full w-full object-cover transition-transform duration-300 fine:group-hover:scale-115"
                   />
                 ) : (
-                  <span className="flex h-full w-full items-center justify-center font-display text-[13px] text-ink-3 transition-transform duration-300 group-hover:scale-115">
+                  <span className="flex h-full w-full items-center justify-center font-display text-[13px] text-ink-3 transition-transform duration-300 fine:group-hover:scale-115">
                     {account.name.charAt(0)}
                   </span>
                 )}

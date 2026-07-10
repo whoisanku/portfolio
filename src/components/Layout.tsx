@@ -10,7 +10,7 @@ import AdminModal from "./AdminModal";
 import AnimatedSign from "./AnimatedSign";
 import ChatWidget from "./ChatWidget";
 import ThemeToggle from "./ThemeToggle";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 const navItems = [
   { to: "/", label: "work" },
@@ -93,7 +93,7 @@ const TopNav = () => {
             key={item.to}
             to={item.to}
             ref={(el) => { linkRefs.current[i] = el; }}
-            className="group relative text-[15px] tracking-[0.03em]"
+            className="pressable group relative text-[15px] tracking-[0.03em]"
             style={{ paddingBottom: 8 }}
           >
             <span
@@ -119,8 +119,10 @@ const TopNav = () => {
             overflow: "visible",
             pointerEvents: "none",
             opacity: ready ? 1 : 0,
-            // ← this single transition makes the snake glide from tab to tab
-            transition: "left 0.52s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease",
+            // ← glides the snake from tab to tab; easing width too so it grows/
+            // shrinks smoothly between words of different lengths (no snap)
+            transition:
+              "left 0.52s var(--ease-out), width 0.52s var(--ease-out), opacity 0.2s ease",
           }}
           viewBox={`0 ${-SVG_H / 2} ${underline.width} ${SVG_H}`}
           preserveAspectRatio="none"
@@ -234,7 +236,7 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
       <button
         type="button"
         onClick={handleLockClick}
-        className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 hover:bg-raise -translate-y-1 ${signingIn || isSignedIn
+        className={`pressable flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 hover:bg-raise -translate-y-1 ${signingIn || isSignedIn
           ? "text-accent"
           : "text-ink-3 hover:text-accent"
           }`}
@@ -282,7 +284,7 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
                 setDropdownOpen(false);
                 openModal();
               }}
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left font-mono text-[12px] text-ink-3 transition-colors hover:bg-raise hover:text-ink"
+              className="pressable flex items-center gap-2.5 rounded-lg px-3 py-2 text-left font-mono text-[12px] text-ink-3 transition-colors hover:bg-raise hover:text-ink"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -304,7 +306,7 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
                 setDropdownOpen(false);
                 void signOut();
               }}
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left font-mono text-[12px] text-ink-3 transition-colors hover:bg-raise hover:text-ink"
+              className="pressable flex items-center gap-2.5 rounded-lg px-3 py-2 text-left font-mono text-[12px] text-ink-3 transition-colors hover:bg-raise hover:text-ink"
             >
               <LogOut size={13} /> sign out
             </button>
@@ -331,7 +333,7 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
               }}
               disabled={status === "loading" || signingIn}
               aria-live="polite"
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-70"
+              className="pressable flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-70"
             >
               {signingIn ? (
                 <>
@@ -365,6 +367,7 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
 
 const Layout = () => {
   const { pathname } = useLocation();
+  const prefersReduced = useReducedMotion();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [showResumeTip, setShowResumeTip] = useState(false);
 
@@ -412,7 +415,7 @@ const Layout = () => {
               src={avatarUrl ?? LOCAL_AVATAR}
               alt="Ankit Bhandari"
               className="h-9 w-9 rounded-full border border-line object-cover"
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              transition={prefersReduced ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 30 }}
             />
           </Link>
         ) : (
@@ -427,7 +430,7 @@ const Layout = () => {
                 href="/resume/Ankit Bhandari Resume.pdf.pdf"
                 download
                 onClick={dismissResumeTip}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 transition-colors duration-200 hover:bg-raise hover:text-ink -translate-y-1"
+                className="pressable flex h-8 w-8 items-center justify-center rounded-full text-ink-3 transition-colors duration-200 hover:bg-raise hover:text-ink -translate-y-1"
                 aria-label="Download resume"
               >
                 <Download size={15} />
@@ -435,12 +438,12 @@ const Layout = () => {
               <AnimatePresence>
                 {showResumeTip && (
                   <motion.div
-                    initial={{ opacity: 0, y: -6, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -4, scale: 0.96 }}
-                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    initial={prefersReduced ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.96 }}
+                    animate={prefersReduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+                    exit={prefersReduced ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.96 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                     className="absolute right-0 top-full mt-3 cursor-pointer"
-                    style={{ width: 208, zIndex: 50 }}
+                    style={{ width: 208, zIndex: 50, transformOrigin: "top right" }}
                     onClick={dismissResumeTip}
                   >
                     {/* Whole bubble — rounded body + caret — is one continuous path, so the
@@ -506,7 +509,7 @@ const Layout = () => {
               href="https://www.linkedin.com/in/whoisanku/"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-raise hover:text-accent transition-colors duration-200"
+              className="pressable flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-raise hover:text-accent transition-colors duration-200"
               aria-label="LinkedIn"
             >
               <svg
@@ -522,7 +525,7 @@ const Layout = () => {
               href={`https://bsky.app/profile/${OWNER_HANDLE}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-raise hover:text-accent transition-colors duration-200"
+              className="pressable flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-raise hover:text-accent transition-colors duration-200"
               aria-label="Bluesky"
             >
               <svg
@@ -538,7 +541,7 @@ const Layout = () => {
               href="https://x.com/whoisanku"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-raise hover:text-accent transition-colors duration-200"
+              className="pressable flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-raise hover:text-accent transition-colors duration-200"
               aria-label="X (formerly Twitter)"
             >
               <svg
@@ -554,7 +557,7 @@ const Layout = () => {
               href="https://www.threads.net/@whoisanku"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-raise hover:text-accent transition-colors duration-200"
+              className="pressable flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-raise hover:text-accent transition-colors duration-200"
               aria-label="Threads"
             >
               <svg
@@ -568,7 +571,7 @@ const Layout = () => {
             </a>
             <a
               href="mailto:bhandariankit2075@gmail.com"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-raise hover:text-accent transition-colors duration-200"
+              className="pressable flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-raise hover:text-accent transition-colors duration-200"
               aria-label="Email"
             >
               <svg
@@ -589,7 +592,7 @@ const Layout = () => {
               href="https://github.com/whoisanku"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-raise hover:text-accent transition-colors duration-200"
+              className="pressable flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-raise hover:text-accent transition-colors duration-200"
               aria-label="GitHub"
             >
               <svg
