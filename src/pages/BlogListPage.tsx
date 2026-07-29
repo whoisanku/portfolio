@@ -1,4 +1,4 @@
-import { ArrowUpRight, Clock3, Edit3, Trash2 } from "lucide-react";
+import { Edit3, Trash2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -6,13 +6,7 @@ import ErrorMessage from "../components/ErrorMessage";
 import Loader from "../components/Loader";
 import { useDialog } from "../components/DialogProvider";
 import { useToast } from "../components/Toast";
-import {
-  deleteBlogEntry,
-  excerpt,
-  listBlogEntries,
-  readingTimeLabel,
-  type BlogEntry,
-} from "../lib/blog";
+import { deleteBlogEntry, listBlogEntries, type BlogEntry } from "../lib/blog";
 
 const formatDate = (iso?: string) =>
   iso
@@ -22,12 +16,6 @@ const formatDate = (iso?: string) =>
         day: "numeric",
       })
     : "";
-
-function getCoverUrl(entry: BlogEntry): string | undefined {
-  if (entry.ogp?.url) return entry.ogp.url;
-  const match = entry.content.match(/!\[.*?\]\((.*?)\)/);
-  return match ? match[1] : undefined;
-}
 
 const Badge = ({ children, accent = false }: { children: ReactNode; accent?: boolean }) => (
   <span
@@ -39,17 +27,11 @@ const Badge = ({ children, accent = false }: { children: ReactNode; accent?: boo
   </span>
 );
 
-const BlogMeta = ({ entry }: { entry: BlogEntry }) => (
-  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-ink-3">
-    {entry.createdAt && <time>{formatDate(entry.createdAt)}</time>}
-    <span className="inline-flex items-center gap-1">
-      <Clock3 size={11} />
-      {readingTimeLabel(entry.content)}
-    </span>
-    {entry.visibility && entry.visibility !== "public" && <Badge>{entry.visibility}</Badge>}
-  </div>
-);
-
+/**
+ * Edit/delete live inside the row's <Link>, so both handlers stop the click
+ * from navigating. On pointer devices they stay hidden until the row is
+ * hovered or focused; touch devices have no hover, so there they're always on.
+ */
 const AdminRowActions = ({
   entry,
   deleting,
@@ -61,7 +43,7 @@ const AdminRowActions = ({
   onEdit: (entry: BlogEntry) => void;
   onDelete: (rkey: string) => void;
 }) => (
-  <div className="flex shrink-0 items-center gap-1">
+  <div className="flex shrink-0 items-center gap-0.5 transition-opacity duration-200 fine:opacity-0 fine:group-hover:opacity-100 fine:group-focus-within:opacity-100">
     <button
       type="button"
       onClick={(e) => {
@@ -90,6 +72,56 @@ const AdminRowActions = ({
       <Trash2 size={14} />
     </button>
   </div>
+);
+
+/**
+ * Title on the left, date on the right. The cover lives in the post itself and
+ * in the link preview, so the index stays a plain reading list.
+ */
+const Row = ({
+  entry,
+  draft = false,
+  isAdmin,
+  deleting,
+  onEdit,
+  onDelete,
+}: {
+  entry: BlogEntry;
+  draft?: boolean;
+  isAdmin: boolean;
+  deleting: boolean;
+  onEdit: (entry: BlogEntry) => void;
+  onDelete: (rkey: string) => void;
+}) => (
+  <li>
+    <Link
+      to={`/blog/${entry.rkey}`}
+      className="group flex items-baseline justify-between gap-6 py-5"
+    >
+      <h2 className="min-w-0 truncate font-display text-[22px] leading-[1.25] font-medium text-ink transition-colors duration-200 group-hover:text-accent">
+        {entry.title}
+      </h2>
+      <div className="flex shrink-0 items-center gap-2.5">
+        {draft && <Badge accent>Draft</Badge>}
+        {!draft && entry.visibility && entry.visibility !== "public" && (
+          <Badge>{entry.visibility}</Badge>
+        )}
+        {isAdmin && (
+          <AdminRowActions
+            entry={entry}
+            deleting={deleting}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        )}
+        {entry.createdAt && (
+          <time className="font-mono text-[11px] whitespace-nowrap text-ink-3">
+            {formatDate(entry.createdAt)}
+          </time>
+        )}
+      </div>
+    </Link>
+  </li>
 );
 
 const BlogListPage = () => {
@@ -148,107 +180,45 @@ const BlogListPage = () => {
     );
   }
 
+  const rowProps = {
+    isAdmin,
+    onEdit: setEditingBlog,
+    onDelete: handleDelete,
+  };
 
   return (
     <div className="space-y-10">
       {isAdmin && drafts.length > 0 && (
         <section>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="font-mono text-[11px] tracking-[0.16em] text-accent uppercase">
-              Drafts ({drafts.length})
-            </h2>
-          </div>
-          <ul className="flex flex-col gap-2">
-            {drafts.map((draft) => {
-              const cover = getCoverUrl(draft);
-              return (
-                <li key={draft.rkey}>
-                  <Link
-                    to={`/blog/${draft.rkey}`}
-                    className="group flex min-w-0 max-w-full gap-4 rounded-[8px] border border-dashed border-line bg-raise/45 p-3 transition-colors duration-200 hover:border-accent hover:bg-raise"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 flex-wrap items-center gap-2">
-                          <Badge accent>Draft</Badge>
-                          <BlogMeta entry={draft} />
-                        </div>
-                        <AdminRowActions
-                          entry={draft}
-                          deleting={deletingRkey === draft.rkey}
-                          onEdit={setEditingBlog}
-                          onDelete={handleDelete}
-                        />
-                      </div>
-                      <h3 className="mt-2 line-clamp-1 font-display text-[18px] font-medium leading-snug text-ink transition-colors group-hover:text-accent">
-                        {draft.title}
-                      </h3>
-                      <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-ink-3">
-                        {excerpt(draft.content, 130)}
-                      </p>
-                    </div>
-
-                    {cover && (
-                      <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md border border-line md:h-[72px] md:w-[72px]">
-                        <img src={cover} alt={draft.title} className="h-full w-full object-cover" />
-                      </div>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
+          <h2 className="font-mono text-[11px] tracking-[0.16em] text-accent uppercase">
+            Drafts ({drafts.length})
+          </h2>
+          <ul className="flex flex-col">
+            {drafts.map((entry) => (
+              <Row
+                key={entry.rkey}
+                entry={entry}
+                draft
+                deleting={deletingRkey === entry.rkey}
+                {...rowProps}
+              />
+            ))}
           </ul>
         </section>
       )}
 
       {publicEntries.length > 0 && (
-        <section className="flex flex-col">
-          {publicEntries.map((entry) => {
-            const cover = getCoverUrl(entry);
-            return (
-              <Link
+        <section>
+          <ul className="flex flex-col">
+            {publicEntries.map((entry) => (
+              <Row
                 key={entry.rkey}
-                to={`/blog/${entry.rkey}`}
-                className="project-row group"
-              >
-                <div className="project-row-text">
-                  <div className="flex items-center justify-between gap-3">
-                    <BlogMeta entry={entry} />
-                    {isAdmin && (
-                      <AdminRowActions
-                        entry={entry}
-                        deleting={deletingRkey === entry.rkey}
-                        onEdit={setEditingBlog}
-                        onDelete={handleDelete}
-                      />
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="line-clamp-1 font-display text-[22px] leading-[1.2] font-medium transition-colors duration-200 group-hover:text-accent">
-                      {entry.title}
-                    </h2>
-                    <ArrowUpRight
-                      size={16}
-                      className="shrink-0 text-ink-3 opacity-0 -translate-x-1 transition duration-200 group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
-                    />
-                  </div>
-                  <p className="line-clamp-2 text-pretty text-[13.5px] leading-[1.55] text-ink-2">
-                    {excerpt(entry.content, 145)}
-                  </p>
-                </div>
-
-                {cover && (
-                  <div className="project-row-screenshot">
-                    <img
-                      src={cover}
-                      alt={entry.title}
-                      className="project-row-screenshot-img transition-transform duration-[250ms] ease-out fine:group-hover:scale-[1.05]"
-                    />
-                  </div>
-                )}
-              </Link>
-            );
-          })}
+                entry={entry}
+                deleting={deletingRkey === entry.rkey}
+                {...rowProps}
+              />
+            ))}
+          </ul>
         </section>
       )}
     </div>
