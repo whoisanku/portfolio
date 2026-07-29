@@ -2,16 +2,25 @@ import { motion, useInView, useReducedMotion } from "motion/react";
 import { useRef } from "react";
 
 /**
- * Hand-drawn "anku" signature. Draws itself once — stroke first, then inks in —
- * the moment it scrolls into view, then rests filled. (It used to loop a 5s
- * draw/erase forever, exactly the slow ambient oscillation to avoid, and a
- * problem under reduced motion.) Inherits its color — wrap it in text-accent.
+ * Hand-drawn "anku" signature. Once it scrolls into view it loops: the stroke
+ * draws on, the letters ink in, then it holds before un-inking and erasing
+ * itself back to nothing. Inherits its color — wrap it in text-accent.
+ *
+ * The fill needs its own timing rather than riding along with the stroke:
+ * fillOpacity paints the whole glyph regardless of how much of the path is
+ * drawn, so ramping them together would ghost the finished signature in behind
+ * a half-drawn line. It stays at 0 until the stroke has landed, and clears
+ * again just before the erase starts.
+ *
+ * Under prefers-reduced-motion it renders finished and never animates.
  */
+const LOOP_SECONDS = 5.5;
+
 const AnimatedSign = () => {
   const ref = useRef<SVGSVGElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
   const prefersReduced = useReducedMotion();
-  const drawn = prefersReduced || inView;
+  const running = !prefersReduced && inView;
 
   return (
     <svg
@@ -29,14 +38,30 @@ const AnimatedSign = () => {
         strokeWidth="0.5"
         fill="currentColor"
         initial={prefersReduced ? { pathLength: 1, fillOpacity: 1 } : { pathLength: 0, fillOpacity: 0 }}
-        animate={drawn ? { pathLength: 1, fillOpacity: 1 } : { pathLength: 0, fillOpacity: 0 }}
+        animate={
+          running
+            ? { pathLength: [0, 1, 1, 0], fillOpacity: [0, 0, 1, 1, 0] }
+            : { pathLength: prefersReduced ? 1 : 0, fillOpacity: prefersReduced ? 1 : 0 }
+        }
         transition={
-          prefersReduced
-            ? { duration: 0 }
-            : {
-                pathLength: { duration: 1.6, ease: [0.16, 1, 0.3, 1] },
-                fillOpacity: { duration: 0.8, delay: 1.25, ease: "easeOut" },
+          running
+            ? {
+                pathLength: {
+                  duration: LOOP_SECONDS,
+                  times: [0, 0.36, 0.68, 1],
+                  ease: "easeInOut",
+                  repeat: Infinity,
+                  repeatDelay: 0.5,
+                },
+                fillOpacity: {
+                  duration: LOOP_SECONDS,
+                  times: [0, 0.34, 0.46, 0.62, 0.7],
+                  ease: "easeInOut",
+                  repeat: Infinity,
+                  repeatDelay: 0.5,
+                },
               }
+            : { duration: 0 }
         }
       />
     </svg>
