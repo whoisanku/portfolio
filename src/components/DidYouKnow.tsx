@@ -6,9 +6,9 @@ const POST_URL = "https://www.threads.com/@whoisanku/post/Da8k-KtEYj2";
 /**
  * "Did you know?" margin note: a card, in the site's own tokens, linking to
  * Ankit's Threads post on getting into Claude for Open Source. The home page
- * renders two copies and CSS shows one: `inline` under the hero on narrow
- * screens, `margin` in the right gutter level with the first project row on
- * wide ones (see .did-you-know in index.css).
+ * renders two copies and CSS shows one: `inline` below the project list on
+ * narrow screens, `margin` in the right gutter level with the first project
+ * row on wide ones (see .did-you-know in index.css).
  */
 const DidYouKnow = ({
   avatarUrl,

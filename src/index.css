@@ -591,13 +591,18 @@ body {
 }
 
 /* ─── Did you know? (Threads margin note) ───
-   Not a section. Two copies, one shown: under the hero on narrow screens,
-   and in the right gutter level with the first project row once there's
-   room for the 660px column plus the note. The card's own look lives in
-   DidYouKnow.tsx; this is placement. */
+   Not a section. Two copies, one shown: below the project list on narrow
+   screens, and in the right gutter level with the first project row once
+   there's room for the 660px column plus the note. The card's own look
+   lives in DidYouKnow.tsx; this is placement. */
 .did-you-know {
   width: 100%;
   max-width: 340px;
+}
+
+/* same 44px rhythm as the gap between project rows */
+.did-you-know-inline {
+  margin-top: 44px;
 }
 
 .did-you-know-margin {
