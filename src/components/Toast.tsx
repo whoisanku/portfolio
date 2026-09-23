@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { AlertCircle, CheckCircle2, Info, Loader2, X } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import {
   createContext,
   useCallback,
@@ -183,7 +184,7 @@ function ToastViewport({
           const meta = VARIANT_META[t.variant];
           const { Icon } = meta;
           return (
-            <motion.div
+            <m.div
               key={t.id}
               layout={!prefersReduced}
               initial={prefersReduced ? { opacity: 0 } : { opacity: 0, y: 16, scale: 0.96 }}
@@ -280,7 +281,7 @@ function ToastViewport({
                 </div>
               ) : (
                 t.duration != null && (
-                  <motion.div
+                  <m.div
                     className="h-[2px] origin-left"
                     style={{ background: meta.bar }}
                     initial={{ scaleX: 1 }}
@@ -289,7 +290,7 @@ function ToastViewport({
                   />
                 )
               )}
-            </motion.div>
+            </m.div>
           );
         })}
       </AnimatePresence>

@@ -1,4 +1,3 @@
-import Hls from "hls.js";
 import { Maximize, Minimize, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { FeedVideo } from "../lib/feed";
@@ -38,25 +37,55 @@ const VideoPlayer = ({ video }: { video: FeedVideo }) => {
   // autoplaying video doesn't re-render every frame and stutter page scroll.
   const lastTimeSyncRef = useRef(0);
 
-  // Attach the HLS stream (Safari plays m3u8 natively; others need hls.js)
+  // Whether the frame is (mostly) on screen; autoplay follows it.
+  const inViewRef = useRef(false);
+
+  // Attach the stream only as the video nears the viewport, so a long feed
+  // doesn't fetch every playlist up front. Safari plays m3u8 natively; other
+  // browsers get hls.js (its light build), loaded on first need.
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    if (el.canPlayType("application/vnd.apple.mpegurl")) {
-      el.src = video.playlist;
-      return;
-    }
-    if (Hls.isSupported()) {
-      const hls = new Hls();
-      // start at the top rendition so the first frames aren't blurry
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        hls.startLevel = hls.levels.length - 1;
-      });
-      hls.loadSource(video.playlist);
-      hls.attachMedia(el);
-      return () => hls.destroy();
-    }
-    el.src = video.playlist;
+    let cancelled = false;
+    let hls: { destroy: () => void } | null = null;
+
+    const attach = async () => {
+      if (el.canPlayType("application/vnd.apple.mpegurl")) {
+        el.src = video.playlist;
+      } else {
+        const { default: Hls } = await import("hls.js/light");
+        if (cancelled) return;
+        if (Hls.isSupported()) {
+          const instance = new Hls();
+          // start at the top rendition so the first frames aren't blurry
+          instance.on(Hls.Events.MANIFEST_PARSED, () => {
+            instance.startLevel = instance.levels.length - 1;
+          });
+          instance.loadSource(video.playlist);
+          instance.attachMedia(el);
+          hls = instance;
+        } else {
+          el.src = video.playlist;
+        }
+      }
+      if (inViewRef.current) void el.play().catch(() => {});
+    };
+
+    const approach = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        approach.disconnect();
+        void attach();
+      },
+      { rootMargin: "600px 0px" },
+    );
+    approach.observe(el);
+
+    return () => {
+      cancelled = true;
+      approach.disconnect();
+      hls?.destroy();
+    };
   }, [video.playlist]);
 
   // Autoplay while visible, pause when scrolled away
@@ -65,8 +94,9 @@ const VideoPlayer = ({ video }: { video: FeedVideo }) => {
     if (!el) return;
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) void el.play().catch(() => {});
-        else el.pause();
+        inViewRef.current = entry.isIntersecting;
+        if (!entry.isIntersecting) el.pause();
+        else if (el.currentSrc || el.src) void el.play().catch(() => {});
       },
       { threshold: 0.45 },
     );

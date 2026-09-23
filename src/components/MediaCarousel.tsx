@@ -1,10 +1,15 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState, type TouchEvent } from "react";
 import type { FeedImage } from "../lib/feed";
+import Img from "./Img";
+
+/** Horizontal travel (px) that counts as a swipe. */
+const SWIPE_PX = 40;
 
 /**
  * Custom carousel for posts with multiple images — one frame at a time,
- * side arrows, mono counter, and dot indicators in the site's accent.
+ * side arrows (or a swipe), mono counter, and dot indicators in the site's
+ * accent.
  */
 const MediaCarousel = ({
   images,
@@ -16,9 +21,33 @@ const MediaCarousel = ({
   const [index, setIndex] = useState(0);
   const count = images.length;
   const go = (delta: number) => setIndex((i) => (i + delta + count) % count);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
+  const onTouchStart = (e: TouchEvent) => {
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const onTouchEnd = (e: TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    if (Math.abs(dx) > SWIPE_PX && Math.abs(dx) > Math.abs(t.clientY - start.y)) {
+      go(dx < 0 ? 1 : -1);
+    }
+  };
 
   return (
-    <div className="relative mt-4 overflow-hidden rounded-xl border border-line">
+    <div
+      className="relative mt-4 overflow-hidden rounded-xl border border-line bg-raise"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      role="group"
+      aria-roledescription="carousel"
+      aria-label={`${count} images`}
+    >
       {/* Sliding track */}
       <div
         className="flex transition-transform duration-300 ease-out"
@@ -29,13 +58,14 @@ const MediaCarousel = ({
             key={image.fullsize}
             type="button"
             onClick={() => onImageClick(i)}
-            className="h-[300px] w-full shrink-0 cursor-pointer sm:h-[400px]"
+            className="h-[300px] w-full shrink-0 cursor-zoom-in sm:h-[400px]"
+            aria-label={`View image ${i + 1} of ${count}`}
+            tabIndex={i === index ? undefined : -1}
           >
-            <img
+            <Img
               src={image.thumb}
               alt={image.alt || "Post image"}
               loading="lazy"
-              decoding="async"
               className="h-full w-full object-cover"
             />
           </button>

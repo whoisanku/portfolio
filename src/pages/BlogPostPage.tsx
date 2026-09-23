@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, Clock3, Edit3, ExternalLink, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import Markdown, { type Components } from "react-markdown";
@@ -5,42 +6,61 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "../auth/AuthContext";
 import ErrorMessage from "../components/ErrorMessage";
-import Loader from "../components/Loader";
+import Img from "../components/Img";
+import { BlogPostSkeleton } from "../components/Skeleton";
 import { useDialog } from "../components/DialogProvider";
 import { useToast } from "../components/Toast";
-import {
-  deleteBlogEntry,
-  getBlogEntry,
-  readingTimeLabel,
-  whtwndUrl,
-  type BlogEntry,
-} from "../lib/blog";
+import { deleteBlogEntry, isViewableByLink, readingTimeLabel, whtwndUrl } from "../lib/blog";
 import { OWNER_HANDLE } from "../lib/config";
+import { isNotFound } from "../lib/http";
 import { COLUMN_SIZES, responsiveImage } from "../lib/image";
+import { blogEntryQuery, invalidateBlog, removeBlogEntry } from "../lib/queries";
 
-/** Body images: resized per device, and fetched only as they scroll near. */
+/** Body images: resized per device, fetched only as they scroll near, faded in. */
 const markdownComponents: Components = {
   img: ({ src, alt, title }) =>
     typeof src === "string" ? (
-      <img
+      <Img
         {...responsiveImage(src, COLUMN_SIZES)}
+        fallbackSrc={src}
         alt={alt ?? ""}
         title={title}
         loading="lazy"
-        decoding="async"
       />
     ) : null,
 };
 
+const SITE_TITLE = "Ankit Bhandari";
+
+const NotFound = () => (
+  <div className="flex flex-col items-center gap-4 py-12 text-center">
+    <p className="font-mono text-xs text-ink-3">This post doesn&rsquo;t exist, or isn&rsquo;t public.</p>
+    <Link
+      to="/blog"
+      className="inline-flex items-center gap-1 font-mono text-[12.5px] text-accent hover:underline"
+    >
+      <ChevronLeft size={14} /> All blogs
+    </Link>
+  </div>
+);
+
 const BlogPostView = ({ rkey }: { rkey: string }) => {
-  const [entry, setEntry] = useState<BlogEntry | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data: entry, error, refetch, isRefetching } = useQuery(blogEntryQuery(rkey));
   const navigate = useNavigate();
   const { agent, status, devMode, setEditingBlog } = useAuth();
   const { confirm } = useDialog();
   const toast = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
   const isAdmin = status === "signed-in";
+
+  // Tab title follows the post (the edge function sets it for crawlers).
+  useEffect(() => {
+    if (!entry) return;
+    document.title = `${entry.title} · ${SITE_TITLE}`;
+    return () => {
+      document.title = SITE_TITLE;
+    };
+  }, [entry]);
 
   const handleDelete = async () => {
     const ok = await confirm({
@@ -55,6 +75,8 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
       await deleteBlogEntry(agent, rkey, devMode);
       toast.success("Blog deleted");
       navigate("/blog");
+      removeBlogEntry(rkey);
+      void invalidateBlog();
     } catch (err) {
       toast.error("Couldn't delete post", {
         description: err instanceof Error ? err.message : undefined,
@@ -64,24 +86,25 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
     }
   };
 
-  useEffect(() => {
-    if (status === "loading") return;
+  if (!entry) {
+    if (error && isNotFound(error)) return <NotFound />;
+    if (error) {
+      return (
+        <ErrorMessage
+          message="Couldn't load this post. Check your connection and try again."
+          onRetry={() => void refetch()}
+          retrying={isRefetching}
+        />
+      );
+    }
+    return <BlogPostSkeleton />;
+  }
 
-    let cancelled = false;
-    getBlogEntry(rkey, isAdmin)
-      .then((result) => {
-        if (!cancelled) setEntry(result);
-      })
-      .catch(() => {
-        if (!cancelled) setError("Post not found.");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [rkey, status, isAdmin]);
-
-  if (error) return <ErrorMessage message={error} />;
-  if (!entry) return <Loader label="Loading post…" />;
+  // Drafts and private posts are the owner's alone. Hold off deciding while
+  // a stored admin session is still being restored.
+  if (!isViewableByLink(entry) && !isAdmin) {
+    return status === "loading" ? <BlogPostSkeleton /> : <NotFound />;
+  }
 
   return (
     <article>
@@ -93,15 +116,15 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
       </Link>
 
       {entry.ogp?.url && (
-        <div className="mb-9 overflow-hidden rounded-[10px] border border-line">
-          <img
+        <div className="mb-9 overflow-hidden rounded-[10px] border border-line bg-raise">
+          <Img
             {...responsiveImage(entry.ogp.url, COLUMN_SIZES)}
+            fallbackSrc={entry.ogp.url}
             alt={entry.title}
             width={entry.ogp.width}
             height={entry.ogp.height}
             fetchPriority="high"
-            decoding="async"
-            className="max-h-[380px] w-full object-cover"
+            className="h-auto max-h-[380px] w-full object-cover"
           />
         </div>
       )}
@@ -112,7 +135,7 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
       <div className="mt-3 mb-10 flex items-center justify-between gap-3 font-mono text-[12px] text-ink-3">
         <div className="flex flex-wrap items-center gap-4">
           {entry.createdAt && (
-            <time>
+            <time dateTime={entry.createdAt}>
               {new Date(entry.createdAt).toLocaleDateString("en-US", {
                 year: "numeric",
                 month: "long",

@@ -1,5 +1,5 @@
 import type { Agent } from "@atproto/api";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import {
   Bold,
   ChevronDown,
@@ -1030,7 +1030,7 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
                   }`}
                 >
                   {active && (
-                    <motion.div
+                    <m.div
                       layoutId="visibility-pill"
                       className="absolute inset-0 rounded bg-raise"
                       transition={{ type: "spring", stiffness: 380, damping: 30 }}

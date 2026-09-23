@@ -2,6 +2,8 @@ import { Maximize2, Minimize2, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "../auth/AuthContext";
+import { invalidateBlog, invalidatePosts } from "../lib/queries";
+import { useScrollLock } from "../lib/useScrollLock";
 import BlogEditor, { type BlogEditorHandle } from "./BlogEditor";
 import ConfirmDialog from "./ConfirmDialog";
 import PostComposer from "./PostComposer";
@@ -89,6 +91,7 @@ const AdminModal = () => {
       setSavingDraftOnClose(true);
       try {
         await blogEditorRef.current?.saveDraft();
+        void invalidateBlog();
         finishClose();
         toast.info("Draft saved", { description: "Your work is safe." });
       } catch (err) {
@@ -116,25 +119,25 @@ const AdminModal = () => {
   );
 
   useEffect(() => {
-    if (modalOpen) {
-      document.addEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "hidden";
-    }
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
+    if (!modalOpen) return;
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [modalOpen, handleKeyDown]);
+
+  useScrollLock(modalOpen && (agent != null || devMode));
 
   if (!modalOpen) return null;
   if (!agent && !devMode) return null;
 
+  // Refresh the cached feed / blog so the pages show the change right away.
   const handlePostPublished = () => {
+    void invalidatePosts();
     finishClose();
     toast.success("Post published");
   };
 
   const handleBlogPublished = () => {
+    void invalidateBlog();
     finishClose();
     toast.success("Blog published");
   };

@@ -1,9 +1,17 @@
 import { PUBLIC_API } from "./config";
+import { fetchJson } from "./http";
+
+export interface AspectRatio {
+  width: number;
+  height: number;
+}
 
 export interface FeedImage {
   thumb: string;
   fullsize: string;
   alt?: string;
+  /** Lets the page reserve the image's box before it loads (no reflow). */
+  aspectRatio?: AspectRatio;
 }
 
 export interface FeedExternal {
@@ -18,7 +26,7 @@ export interface FeedVideo {
   playlist: string;
   thumbnail?: string;
   alt?: string;
-  aspectRatio?: { width: number; height: number };
+  aspectRatio?: AspectRatio;
 }
 
 /** Rich-text annotation (mention / link / hashtag) over a UTF-8 byte range. */
@@ -65,7 +73,7 @@ interface EmbedView {
   playlist?: string;
   thumbnail?: string;
   alt?: string;
-  aspectRatio?: { width: number; height: number };
+  aspectRatio?: AspectRatio;
 }
 
 interface AuthorFeedResponse {
@@ -108,17 +116,29 @@ function extractEmbeds(embed: AuthorFeedResponse["feed"][number]["post"]["embed"
         aspectRatio: media.aspectRatio,
       }
     : undefined;
-  return { images: media.images ?? [], external: media.external, video };
+  const images = (media.images ?? []).map(({ thumb, fullsize, alt, aspectRatio }) => ({
+    thumb,
+    fullsize,
+    alt,
+    aspectRatio,
+  }));
+  return { images, external: media.external, video };
 }
 
 /**
  * Fetch one page of the owner's original posts (replies and reposts
  * filtered out) from the public AppView. No auth required.
  */
+export interface FeedPage {
+  posts: FeedPost[];
+  cursor?: string;
+}
+
 export async function fetchAuthorPosts(
   handle: string,
   cursor?: string,
-): Promise<{ posts: FeedPost[]; cursor?: string }> {
+  signal?: AbortSignal,
+): Promise<FeedPage> {
   const params = new URLSearchParams({
     actor: handle,
     limit: "30",
@@ -127,9 +147,10 @@ export async function fetchAuthorPosts(
   });
   if (cursor) params.set("cursor", cursor);
 
-  const res = await fetch(`${PUBLIC_API}/xrpc/app.bsky.feed.getAuthorFeed?${params}`);
-  if (!res.ok) throw new Error(`Failed to load feed (${res.status})`);
-  const data = (await res.json()) as AuthorFeedResponse;
+  const data = await fetchJson<AuthorFeedResponse>(
+    `${PUBLIC_API}/xrpc/app.bsky.feed.getAuthorFeed?${params}`,
+    { signal },
+  );
 
   const isPin = (reason: unknown): boolean =>
     (reason as { $type?: string } | undefined)?.$type ===
@@ -163,4 +184,23 @@ export async function fetchAuthorPosts(
     });
 
   return { posts, cursor: data.cursor };
+}
+
+/**
+ * Tenor/Giphy embeds arrive as external links; render those inline as GIFs.
+ * Returns the GIF's size when the URL carries it (Bluesky's GIF picker adds
+ * ?hh=&ww=), so its box can be reserved before it loads.
+ */
+export function gifEmbed(uri: string): { size?: AspectRatio } | null {
+  try {
+    const { hostname, pathname, searchParams } = new URL(uri);
+    const isGif =
+      /\.gif$/i.test(pathname) || hostname.endsWith("tenor.com") || hostname.endsWith("giphy.com");
+    if (!isGif) return null;
+    const width = Number(searchParams.get("ww"));
+    const height = Number(searchParams.get("hh"));
+    return { size: width > 0 && height > 0 ? { width, height } : undefined };
+  } catch {
+    return null;
+  }
 }

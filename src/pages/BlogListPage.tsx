@@ -1,20 +1,24 @@
+import { useQuery } from "@tanstack/react-query";
 import { Edit3, Trash2 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import ErrorMessage from "../components/ErrorMessage";
-import Loader from "../components/Loader";
+import Img from "../components/Img";
+import { BlogListSkeleton } from "../components/Skeleton";
 import { useDialog } from "../components/DialogProvider";
 import { useToast } from "../components/Toast";
 import {
   coverUrl,
   deleteBlogEntry,
   excerpt,
-  listBlogEntries,
+  isPublicEntry,
   readingTimeMinutes,
   type BlogEntry,
 } from "../lib/blog";
 import { COLUMN_SIZES, responsiveImage } from "../lib/image";
+import { blogEntriesQuery, invalidateBlog, removeBlogEntry } from "../lib/queries";
+import { loadBlogPostPage, prefetchOnIntent, whenIdle } from "../routes";
 
 /** Rows shown under the featured post before "Show older posts". */
 const PAGE_SIZE = 8;
@@ -136,14 +140,19 @@ const FeaturedPost = (props: PostProps) => {
   const cover = coverUrl(entry);
   const blurb = excerpt(entry.content);
   return (
-    <Link to={`/blog/${entry.rkey}`} className="group block">
+    <Link
+      to={`/blog/${entry.rkey}`}
+      className="group block"
+      data-scroll-anchor={entry.rkey}
+      {...prefetchOnIntent(`/blog/${entry.rkey}`)}
+    >
       {cover && (
         <div className="mb-5 aspect-video overflow-hidden rounded-[12px] border border-line bg-raise">
-          <img
+          <Img
             {...responsiveImage(cover, COLUMN_SIZES)}
+            fallbackSrc={cover}
             alt=""
             fetchPriority="high"
-            decoding="async"
             className={coverImgClass}
           />
         </div>
@@ -165,8 +174,12 @@ const PostRow = (props: PostProps) => {
   const cover = coverUrl(entry);
   const blurb = excerpt(entry.content);
   return (
-    <li className="border-t border-line">
-      <Link to={`/blog/${entry.rkey}`} className="group flex items-center gap-4 py-5 sm:gap-6">
+    <li className="border-t border-line" data-scroll-anchor={entry.rkey}>
+      <Link
+        to={`/blog/${entry.rkey}`}
+        className="group flex items-center gap-4 py-5 sm:gap-6"
+        {...prefetchOnIntent(`/blog/${entry.rkey}`)}
+      >
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <h3 className="font-display text-[20px] leading-[1.3] font-medium text-ink transition-colors duration-200 group-hover:text-accent">
             {entry.title}
@@ -176,11 +189,11 @@ const PostRow = (props: PostProps) => {
         </div>
         {cover && (
           <div className="h-[60px] w-[84px] shrink-0 overflow-hidden rounded-[8px] border border-line bg-raise sm:h-[76px] sm:w-[112px]">
-            <img
+            <Img
               {...responsiveImage(cover, "(min-width: 640px) 112px, 84px")}
+              fallbackSrc={cover}
               alt=""
               loading="lazy"
-              decoding="async"
               className={coverImgClass}
             />
           </div>
@@ -222,16 +235,34 @@ const YearFilter = ({
 );
 
 const BlogListPage = () => {
-  const [entries, setEntries] = useState<BlogEntry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { data, error, refetch, isRefetching } = useQuery(blogEntriesQuery());
   const { agent, status, devMode, setEditingBlog } = useAuth();
   const { confirm } = useDialog();
   const toast = useToast();
   const [deletingRkey, setDeletingRkey] = useState<string | null>(null);
-  const [year, setYear] = useState<string | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  // Filter and "show older" live in the URL, so Back from a post returns to
+  // the same list (and scroll position) and a filtered view can be shared.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const year = searchParams.get("year");
+  const showAll = searchParams.get("older") === "all";
+  const updateParams = (changes: Record<string, string | null>) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [key, value] of Object.entries(changes)) {
+          if (value == null) next.delete(key);
+          else next.set(key, value);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  const setYear = (value: string | null) => updateParams({ year: value });
 
   const isAdmin = status === "signed-in";
+
+  // Opening a post is the likely next step: fetch its page code while idle.
+  useEffect(() => whenIdle(() => void loadBlogPostPage()), []);
 
   const handleDelete = async (rkey: string) => {
     const ok = await confirm({
@@ -244,7 +275,8 @@ const BlogListPage = () => {
     setDeletingRkey(rkey);
     try {
       await deleteBlogEntry(agent, rkey, devMode);
-      setEntries((prev) => (prev ? prev.filter((e) => e.rkey !== rkey) : null));
+      removeBlogEntry(rkey);
+      void invalidateBlog();
       toast.success("Blog deleted");
     } catch (err) {
       toast.error("Couldn't delete post", {
@@ -255,19 +287,21 @@ const BlogListPage = () => {
     }
   };
 
-  useEffect(() => {
-    if (status === "loading") return;
-
-    listBlogEntries(isAdmin)
-      .then(setEntries)
-      .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : "Failed to load blogs"),
+  if (!data) {
+    if (error) {
+      return (
+        <ErrorMessage
+          message="Couldn't load the blog. Check your connection and try again."
+          onRetry={() => void refetch()}
+          retrying={isRefetching}
+        />
       );
-  }, [status, isAdmin]);
+    }
+    return <BlogListSkeleton />;
+  }
 
-  if (error) return <ErrorMessage message={error} />;
-  if (!entries) return <Loader label="Loading blogs..." />;
-
+  // The repo holds drafts and unlisted posts too; only the owner sees those.
+  const entries = isAdmin ? data : data.filter(isPublicEntry);
   const drafts = entries.filter((e) => e.isDraft);
   const [featured, ...rest] = entries.filter((e) => !e.isDraft);
 
@@ -339,7 +373,7 @@ const BlogListPage = () => {
           {olderCount > 0 && (
             <button
               type="button"
-              onClick={() => setShowAll(true)}
+              onClick={() => updateParams({ older: "all" })}
               className="pressable mt-4 h-12 w-full rounded-[10px] border border-line font-mono text-[12.5px] text-ink-2 hover:border-ink-3 hover:text-ink"
             >
               Show {olderCount} older {olderCount === 1 ? "post" : "posts"}

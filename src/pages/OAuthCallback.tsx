@@ -1,11 +1,10 @@
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import { matchPath } from "react-router-dom";
 import { readAuthReturnPath } from "../auth/oauthState";
+import { BlogPostPage } from "../routes";
 import BlogListPage from "./BlogListPage";
 import HomePage from "./HomePage";
 import PostsPage from "./PostsPage";
-
-const BlogPostPage = lazy(() => import("./BlogPostPage"));
 
 const pathnameFromReturnPath = (path: string) => {
   try {

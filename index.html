@@ -5,12 +5,10 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Avatar + feed media (Bluesky CDN), project shots (Cloudinary), profile (AppView) -->
   <link rel="preconnect" href="https://cdn.bsky.app">
-  <link
-    href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&amp;family=Schibsted+Grotesk:ital,wght@0,400..700;1,400..700&amp;family=Spline+Sans+Mono:wght@400;500&amp;display=optional"
-    rel="stylesheet">
+  <link rel="preconnect" href="https://res.cloudinary.com">
+  <link rel="preconnect" href="https://public.api.bsky.app" crossorigin>
   <meta
     name="description"
     content="Ankit Bhandari - loves designing and software development."
@@ -68,25 +66,37 @@
   </script>
   <script>
     // Start loading the Bluesky profile (avatar + display name) now, alongside
-    // the app bundle, instead of after React mounts. src/lib/ownerProfile.ts
-    // picks the promise up and the first render waits for it. The handle
-    // mirrors OWNER_HANDLE in src/lib/config.ts.
-    window.__ownerProfile = fetch(
-      "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=anku.bsky.social"
-    )
-      .then(function (res) { return res.ok ? res.json() : null; })
-      .catch(function () { return null; })
-      .then(function (profile) {
-        var name = (profile && profile.displayName && profile.displayName.trim()) || null;
-        var url = profile && profile.avatar;
-        if (!url) return { avatar: null, displayName: name };
-        return new Promise(function (resolve) {
-          var img = new Image();
-          img.onload = function () { resolve({ avatar: url, displayName: name }); };
-          img.onerror = function () { resolve({ avatar: null, displayName: name }); };
-          img.src = url;
+    // the app bundle, instead of after React mounts; src/lib/ownerProfile.ts
+    // picks the request up. With a profile saved from an earlier visit the
+    // avatar starts downloading (usually from cache) straight away; otherwise
+    // it starts as soon as the profile arrives. The handle mirrors
+    // OWNER_HANDLE in src/lib/config.ts, the storage key and avatar URL
+    // mirror STORAGE_KEY and ownerAvatarSrc() in src/lib/ownerProfile.ts.
+    (function () {
+      var handle = "anku.bsky.social";
+      var host = location.hostname;
+      var optimize = host !== "localhost" && host !== "127.0.0.1" && host !== "[::1]";
+      function avatarSrc(url) {
+        return optimize ? "/_vercel/image?url=" + encodeURIComponent(url) + "&w=256&q=75" : url;
+      }
+      function preload(url) {
+        if (url) new Image().src = avatarSrc(url);
+      }
+      var saved = null;
+      try { saved = JSON.parse(localStorage.getItem("owner-profile:" + handle)); } catch (e) { /* privacy mode */ }
+      if (saved && saved.avatar) preload(saved.avatar);
+      window.__ownerProfileRequest = fetch(
+        "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=" + handle
+      )
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .catch(function () { return null; })
+        .then(function (profile) {
+          if (profile && profile.avatar && (!saved || saved.avatar !== profile.avatar)) {
+            preload(profile.avatar);
+          }
+          return profile;
         });
-      });
+    })();
   </script>
   <title>Ankit Bhandari</title>
 </head>

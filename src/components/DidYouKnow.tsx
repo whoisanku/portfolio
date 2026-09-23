@@ -1,4 +1,5 @@
 import { ArrowUpRight } from "lucide-react";
+import { OwnerAvatarIcon } from "./OwnerAvatar";
 
 /** Ankit's Threads post about joining Anthropic's Claude for Open Source. */
 const POST_URL = "https://www.threads.com/@whoisanku/post/Da8k-KtEYj2";
@@ -10,13 +11,7 @@ const POST_URL = "https://www.threads.com/@whoisanku/post/Da8k-KtEYj2";
  * narrow screens, `margin` in the right gutter level with the first project
  * row on wide ones (see .did-you-know in index.css).
  */
-const DidYouKnow = ({
-  avatarUrl,
-  placement,
-}: {
-  avatarUrl: string | null;
-  placement: "inline" | "margin";
-}) => (
+const DidYouKnow = ({ placement }: { placement: "inline" | "margin" }) => (
   <a
     href={POST_URL}
     target="_blank"
@@ -46,15 +41,7 @@ const DidYouKnow = ({
     <div className="wavy-rule" aria-hidden="true" />
 
     <div className="flex items-center gap-2.5">
-      {avatarUrl ? (
-        <img
-          src={avatarUrl}
-          alt=""
-          className="h-7 w-7 shrink-0 rounded-full border border-line object-cover"
-        />
-      ) : (
-        <span className="h-7 w-7 shrink-0 rounded-full border border-line bg-raise" />
-      )}
+      <OwnerAvatarIcon className="h-7 w-7 border border-line" />
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-[12.5px] font-medium leading-[1.3] text-ink">
           Ankit Bhandari
