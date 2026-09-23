@@ -14,6 +14,7 @@ import {
   readingTimeMinutes,
   type BlogEntry,
 } from "../lib/blog";
+import { COLUMN_SIZES, responsiveImage } from "../lib/image";
 
 /** Rows shown under the featured post before "Show older posts". */
 const PAGE_SIZE = 8;
@@ -138,7 +139,13 @@ const FeaturedPost = (props: PostProps) => {
     <Link to={`/blog/${entry.rkey}`} className="group block">
       {cover && (
         <div className="mb-5 aspect-video overflow-hidden rounded-[12px] border border-line bg-raise">
-          <img src={cover} alt="" fetchPriority="high" decoding="async" className={coverImgClass} />
+          <img
+            {...responsiveImage(cover, COLUMN_SIZES)}
+            alt=""
+            fetchPriority="high"
+            decoding="async"
+            className={coverImgClass}
+          />
         </div>
       )}
       <PostMeta {...props} long />
@@ -169,7 +176,13 @@ const PostRow = (props: PostProps) => {
         </div>
         {cover && (
           <div className="h-[60px] w-[84px] shrink-0 overflow-hidden rounded-[8px] border border-line bg-raise sm:h-[76px] sm:w-[112px]">
-            <img src={cover} alt="" loading="lazy" decoding="async" className={coverImgClass} />
+            <img
+              {...responsiveImage(cover, "(min-width: 640px) 112px, 84px")}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className={coverImgClass}
+            />
           </div>
         )}
       </Link>

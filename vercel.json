@@ -1,11 +1,17 @@
 {
+  "images": {
+    "sizes": [256, 384, 640, 828, 1280, 1920],
+    "formats": ["image/avif", "image/webp"],
+    "remotePatterns": [{ "protocol": "https", "hostname": "api.grove.storage" }],
+    "minimumCacheTTL": 31536000
+  },
   "rewrites": [
     {
       "source": "/blog/:rkey",
       "destination": "/api/blog-og?rkey=:rkey"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!_vercel/).*)",
       "destination": "/index.html"
     }
   ]
