@@ -2,13 +2,13 @@ import { Download, Loader2, Lock, LockOpen, LogOut, User, X } from "lucide-react
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import blueskyLogo from "../assets/bsky.svg";
-
-const LOCAL_AVATAR = "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/v1781422173/portfolio/profile";
 import { useAuth } from "../auth/AuthContext";
-import { OWNER_HANDLE, PUBLIC_API } from "../lib/config";
+import { loadedOwnerAvatar, ownerAvatar } from "../lib/avatar";
+import { OWNER_HANDLE } from "../lib/config";
 import AdminModal from "./AdminModal";
 import AnimatedSign from "./AnimatedSign";
 import ChatWidget from "./ChatWidget";
+import OwnerAvatar from "./OwnerAvatar";
 import ThemeToggle from "./ThemeToggle";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
@@ -368,7 +368,7 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
 const Layout = () => {
   const { pathname } = useLocation();
   const prefersReduced = useReducedMotion();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState(loadedOwnerAvatar);
   const [showResumeTip, setShowResumeTip] = useState(false);
 
   useEffect(() => {
@@ -383,24 +383,10 @@ const Layout = () => {
     setShowResumeTip(false);
   };
 
+  // Normally a no-op: the first render already waited for the avatar. This
+  // only matters if it arrived after main.tsx stopped waiting.
   useEffect(() => {
-    fetch(
-      `${PUBLIC_API}/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(OWNER_HANDLE)}`,
-    )
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch profile");
-        return res.json();
-      })
-      .then((data: { avatar?: string }) => {
-        if (data.avatar) {
-          const img = new Image();
-          img.src = data.avatar;
-          setAvatarUrl(data.avatar);
-        }
-      })
-      .catch((err) => {
-        console.error("Error fetching avatar in Layout:", err);
-      });
+    void ownerAvatar.then(setAvatarUrl);
   }, []);
 
   return (
@@ -410,13 +396,7 @@ const Layout = () => {
       <header className="mb-16 flex items-center justify-between gap-4 sm:mb-20">
         {pathname !== "/" ? (
           <Link to="/" className="group flex items-center gap-3">
-            <motion.img
-              layoutId="profile-avatar"
-              src={avatarUrl ?? LOCAL_AVATAR}
-              alt="Ankit Bhandari"
-              className="h-9 w-9 rounded-full border border-line object-cover"
-              transition={prefersReduced ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 30 }}
-            />
+            <OwnerAvatar src={avatarUrl} className="h-9 w-9" />
           </Link>
         ) : (
           <div className="h-9 w-9" />
