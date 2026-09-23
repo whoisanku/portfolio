@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import blueskyLogo from "../assets/bsky.svg";
 import { useAuth } from "../auth/AuthContext";
-import { loadedOwnerAvatar, ownerAvatar } from "../lib/avatar";
+import { loadedOwnerProfile, ownerProfile } from "../lib/ownerProfile";
 import { OWNER_HANDLE } from "../lib/config";
 import AdminModal from "./AdminModal";
 import AnimatedSign from "./AnimatedSign";
@@ -368,7 +368,8 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
 const Layout = () => {
   const { pathname } = useLocation();
   const prefersReduced = useReducedMotion();
-  const [avatarUrl, setAvatarUrl] = useState(loadedOwnerAvatar);
+  const [profile, setProfile] = useState(loadedOwnerProfile);
+  const avatarUrl = profile.avatar;
   const [showResumeTip, setShowResumeTip] = useState(false);
 
   useEffect(() => {
@@ -383,10 +384,10 @@ const Layout = () => {
     setShowResumeTip(false);
   };
 
-  // Normally a no-op: the first render already waited for the avatar. This
+  // Normally a no-op: the first render already waited for the profile. This
   // only matters if it arrived after main.tsx stopped waiting.
   useEffect(() => {
-    void ownerAvatar.then(setAvatarUrl);
+    void ownerProfile.then(setProfile);
   }, []);
 
   return (
@@ -587,7 +588,7 @@ const Layout = () => {
         </div>
       </footer>
 
-      <ChatWidget ownerAvatar={avatarUrl} />
+      <ChatWidget ownerAvatar={avatarUrl} ownerName={profile.displayName} />
     </div>
   );
 };

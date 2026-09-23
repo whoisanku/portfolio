@@ -250,7 +250,14 @@ const AppPasswordHelp = () => {
  * DM-enabled app password, then exchange real direct messages with the owner —
  * no OAuth, no backend. See src/lib/chat.ts for the transport.
  */
-const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
+const ChatWidget = ({
+  ownerAvatar,
+  ownerName,
+}: {
+  ownerAvatar: string | null;
+  /** Bluesky display name; the handle stands in when there is none. */
+  ownerName: string | null;
+}) => {
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<Phase>("loading");
 
@@ -474,7 +481,7 @@ const ChatWidget = ({ ownerAvatar }: { ownerAvatar: string | null }) => {
                 <span className="h-8 w-8 shrink-0 rounded-full border border-line bg-raise" />
               )}
               <div className="min-w-0 flex-1 leading-tight">
-                <p className="font-mono text-[13px] text-ink">Ankit Bhandari</p>
+                <p className="truncate font-mono text-[13px] text-ink">{ownerName ?? `@${OWNER_HANDLE}`}</p>
               </div>
               {phase === "signed-in" && (
                 <button

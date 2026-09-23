@@ -67,25 +67,26 @@
     })();
   </script>
   <script>
-    // Start loading the Bluesky avatar now, alongside the app bundle, instead
-    // of after React mounts. src/lib/avatar.ts picks the promise up and the
-    // first render waits for it. The handle mirrors OWNER_HANDLE in
-    // src/lib/config.ts.
-    window.__ownerAvatar = fetch(
+    // Start loading the Bluesky profile (avatar + display name) now, alongside
+    // the app bundle, instead of after React mounts. src/lib/ownerProfile.ts
+    // picks the promise up and the first render waits for it. The handle
+    // mirrors OWNER_HANDLE in src/lib/config.ts.
+    window.__ownerProfile = fetch(
       "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=anku.bsky.social"
     )
       .then(function (res) { return res.ok ? res.json() : null; })
+      .catch(function () { return null; })
       .then(function (profile) {
+        var name = (profile && profile.displayName && profile.displayName.trim()) || null;
         var url = profile && profile.avatar;
-        if (!url) return null;
+        if (!url) return { avatar: null, displayName: name };
         return new Promise(function (resolve) {
           var img = new Image();
-          img.onload = function () { resolve(url); };
-          img.onerror = function () { resolve(null); };
+          img.onload = function () { resolve({ avatar: url, displayName: name }); };
+          img.onerror = function () { resolve({ avatar: null, displayName: name }); };
           img.src = url;
         });
-      })
-      .catch(function () { return null; });
+      });
   </script>
   <title>Ankit Bhandari</title>
 </head>
