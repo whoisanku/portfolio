@@ -99,6 +99,12 @@ export function readingTimeLabel(markdown: string): string {
   return `${readingTimeMinutes(markdown)} min read`;
 }
 
+/** The post's own cover, else the first image in its body. */
+export function coverUrl(entry: Pick<BlogEntry, "ogp" | "content">): string | undefined {
+  if (entry.ogp?.url) return entry.ogp.url;
+  return entry.content.match(/!\[.*?\]\((.*?)\)/)?.[1];
+}
+
 /** Markdown blurb -> plain-ish text excerpt for list views. */
 export function excerpt(markdown: string, length = 180): string {
   const text = markdownToPlainText(markdown);
