@@ -188,7 +188,7 @@ const DropdownShell = ({ width, children }: { width: number; children: React.Rea
             left: 0,
             overflow: "visible",
             pointerEvents: "none",
-            filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.45))",
+            filter: "var(--pop-shadow)",
           }}
         >
           <path
@@ -442,7 +442,7 @@ const Layout = () => {
                         height: "calc(100% + 8px)",
                         overflow: "visible",
                         pointerEvents: "none",
-                        filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.45))",
+                        filter: "var(--pop-shadow)",
                       }}
                     >
                       <path

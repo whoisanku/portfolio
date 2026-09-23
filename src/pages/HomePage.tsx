@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useOutletContext } from "react-router-dom";
+import DidYouKnow from "../components/DidYouKnow";
 import OwnerAvatar from "../components/OwnerAvatar";
 import ScienceAccounts from "../components/ScienceAccounts";
 import { pressMentions } from "../data/press";
@@ -191,6 +192,9 @@ const HomePage = () => {
           </div>
         </div>
       </section>
+
+      {/* Did you know? — Claude for Open Source + site trivia */}
+      <DidYouKnow avatarUrl={avatarUrl} />
 
       {/* Experience */}
       <section>

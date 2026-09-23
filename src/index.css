@@ -19,6 +19,11 @@
   --ink-3: #878e9c;
   --line: #dcdfe7;
   --accent-ink: var(--accent);
+  /* Popover lift (resume tip, lock menu): a tight contact shadow plus a soft,
+     ink-tinted ambient one. On light paper a single heavy black blur reads as
+     a grey smudge rather than elevation. */
+  --pop-shadow: drop-shadow(0 1px 1px rgb(25 29 36 / 0.05))
+    drop-shadow(0 8px 18px rgb(25 29 36 / 0.08));
   color-scheme: light;
 }
 
@@ -30,6 +35,9 @@
   --ink-3: #636b7c;
   --line: #292e38;
   --accent-ink: #8fb0f5;
+  /* Dark paper needs a denser shadow to register at all */
+  --pop-shadow: drop-shadow(0 1px 2px rgb(0 0 0 / 0.35))
+    drop-shadow(0 10px 24px rgb(0 0 0 / 0.45));
   color-scheme: dark;
 }
 
