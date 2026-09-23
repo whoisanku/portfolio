@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useOutletContext } from "react-router-dom";
+import OwnerAvatar from "../components/OwnerAvatar";
 import ScienceAccounts from "../components/ScienceAccounts";
 import { pressMentions } from "../data/press";
 import { projects } from "../data/projects";
@@ -44,13 +45,7 @@ const HomePage = () => {
     <div className="flex flex-col gap-28">
       {/* Hero */}
       <section className="flex flex-col gap-7">
-        <motion.img
-          layoutId="profile-avatar"
-          src={avatarUrl ?? "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/v1781422173/portfolio/profile"}
-          alt="Ankit Bhandari"
-          className="h-[72px] w-[72px] rounded-full border border-line object-cover"
-          transition={prefersReduced ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 30 }}
-        />
+        <OwnerAvatar src={avatarUrl} className="h-[72px] w-[72px]" />
         <h1 className="font-display text-[40px] leading-[1.08] font-normal tracking-[-0.01em] text-balance sm:text-[49px]">
           Ankit <em className="italic text-accent">loves</em> designing &amp; software development.
         </h1>

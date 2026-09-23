@@ -7,6 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.bsky.app">
   <link
     href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&amp;family=Schibsted+Grotesk:ital,wght@0,400..700;1,400..700&amp;family=Spline+Sans+Mono:wght@400;500&amp;display=optional"
     rel="stylesheet">
@@ -64,6 +65,28 @@
       var meta = document.querySelector('meta[name="theme-color"]');
       if (meta) meta.setAttribute("content", dark ? "#101216" : "#f6f7f9");
     })();
+  </script>
+  <script>
+    // Start loading the Bluesky profile (avatar + display name) now, alongside
+    // the app bundle, instead of after React mounts. src/lib/ownerProfile.ts
+    // picks the promise up and the first render waits for it. The handle
+    // mirrors OWNER_HANDLE in src/lib/config.ts.
+    window.__ownerProfile = fetch(
+      "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=anku.bsky.social"
+    )
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .catch(function () { return null; })
+      .then(function (profile) {
+        var name = (profile && profile.displayName && profile.displayName.trim()) || null;
+        var url = profile && profile.avatar;
+        if (!url) return { avatar: null, displayName: name };
+        return new Promise(function (resolve) {
+          var img = new Image();
+          img.onload = function () { resolve({ avatar: url, displayName: name }); };
+          img.onerror = function () { resolve({ avatar: null, displayName: name }); };
+          img.src = url;
+        });
+      });
   </script>
   <title>Ankit Bhandari</title>
 </head>

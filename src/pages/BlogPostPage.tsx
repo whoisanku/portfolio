@@ -1,6 +1,6 @@
 import { ChevronLeft, Clock3, Edit3, ExternalLink, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import Markdown from "react-markdown";
+import Markdown, { type Components } from "react-markdown";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "../auth/AuthContext";
@@ -16,6 +16,21 @@ import {
   type BlogEntry,
 } from "../lib/blog";
 import { OWNER_HANDLE } from "../lib/config";
+import { COLUMN_SIZES, responsiveImage } from "../lib/image";
+
+/** Body images: resized per device, and fetched only as they scroll near. */
+const markdownComponents: Components = {
+  img: ({ src, alt, title }) =>
+    typeof src === "string" ? (
+      <img
+        {...responsiveImage(src, COLUMN_SIZES)}
+        alt={alt ?? ""}
+        title={title}
+        loading="lazy"
+        decoding="async"
+      />
+    ) : null,
+};
 
 const BlogPostView = ({ rkey }: { rkey: string }) => {
   const [entry, setEntry] = useState<BlogEntry | null>(null);
@@ -80,8 +95,12 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
       {entry.ogp?.url && (
         <div className="mb-9 overflow-hidden rounded-[10px] border border-line">
           <img
-            src={entry.ogp.url}
+            {...responsiveImage(entry.ogp.url, COLUMN_SIZES)}
             alt={entry.title}
+            width={entry.ogp.width}
+            height={entry.ogp.height}
+            fetchPriority="high"
+            decoding="async"
             className="max-h-[380px] w-full object-cover"
           />
         </div>
@@ -150,7 +169,9 @@ const BlogPostView = ({ rkey }: { rkey: string }) => {
       </div>
 
       <div className="prose blog-prose max-w-none prose-img:rounded-lg prose-img:border prose-img:border-line">
-        <Markdown remarkPlugins={[remarkGfm]}>{entry.content}</Markdown>
+        <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+          {entry.content}
+        </Markdown>
       </div>
     </article>
   );
