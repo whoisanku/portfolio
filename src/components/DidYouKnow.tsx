@@ -5,17 +5,24 @@ const POST_URL = "https://www.threads.com/@whoisanku/post/Da8k-KtEYj2";
 
 /**
  * "Did you know?" margin note: a card, in the site's own tokens, linking to
- * Ankit's Threads post on getting into Claude for Open Source. Sits under the
- * hero on narrow screens and moves into the right gutter beside it on wide
- * ones (see .did-you-know in index.css).
+ * Ankit's Threads post on getting into Claude for Open Source. The home page
+ * renders two copies and CSS shows one: `inline` under the hero on narrow
+ * screens, `margin` in the right gutter level with the first project row on
+ * wide ones (see .did-you-know in index.css).
  */
-const DidYouKnow = ({ avatarUrl }: { avatarUrl: string | null }) => (
+const DidYouKnow = ({
+  avatarUrl,
+  placement,
+}: {
+  avatarUrl: string | null;
+  placement: "inline" | "margin";
+}) => (
   <a
     href={POST_URL}
     target="_blank"
     rel="noopener noreferrer"
     aria-label="Did you know? Ankit was accepted into Anthropic's Claude for Open Source program. Read his post on Threads"
-    className="did-you-know pressable group flex flex-col gap-3.5 rounded-2xl border border-line bg-raise/40 p-4 hover:bg-raise"
+    className={`did-you-know did-you-know-${placement} pressable group flex flex-col gap-3.5 rounded-2xl border border-line bg-raise/40 p-4 hover:bg-raise`}
   >
     <div className="flex items-center justify-between">
       <span className="font-mono text-[12px] tracking-[0.03em] text-accent">did you know?</span>
