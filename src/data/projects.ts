@@ -24,7 +24,7 @@ export const projects: Project[] = [
     description:
       "Himalayan yak cheese dog chews from Nepal, with an evidence-led journal on chew safety, sizing and how churpi is made.",
     url: "https://www.churpico.com",
-    // Screenshots of the site in its dark "Smokehouse" theme: hero + size-finder chews
+    // Screenshots of the site in its dark "Smokehouse" theme: home hero + the yak chew guide
     screenshotStack: {
       front: "/projects/churpico-front.webp",
       back: "/projects/churpico-back.webp",
