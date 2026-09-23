@@ -590,6 +590,35 @@ body {
   }
 }
 
+/* ─── Did you know? (Threads margin note) ───
+   Not a section: a note under the hero on narrow screens that hangs in the
+   right gutter beside it once there's room for the 660px column plus the
+   note. Threads' embed won't go narrower than 270px. */
+.did-you-know {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.did-you-know-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--accent-ink);
+}
+
+@media (min-width: 1320px) {
+  .did-you-know {
+    position: absolute;
+    top: 0;
+    /* past the column's 28px padding, plus a 32px gap */
+    left: calc(100% + 60px);
+    width: 272px;
+  }
+}
+
 /* ─── Press logo marquee (featured in) ───
    Contained ticker inside the column. Logos rest in muted grayscale and
    recover their brand color on hover; the belt drifts slowly and pauses

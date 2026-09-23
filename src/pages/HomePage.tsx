@@ -45,11 +45,13 @@ const HomePage = () => {
   return (
     <div className="flex flex-col gap-28">
       {/* Hero */}
-      <section className="flex flex-col gap-7">
+      <section className="relative flex flex-col gap-7">
         <OwnerAvatar src={avatarUrl} className="h-[72px] w-[72px]" />
         <h1 className="font-display text-[40px] leading-[1.08] font-normal tracking-[-0.01em] text-balance sm:text-[49px]">
           Ankit <em className="italic text-accent">loves</em> designing &amp; software development.
         </h1>
+        {/* Margin note beside the hero on wide screens, under it otherwise */}
+        <DidYouKnow />
       </section>
 
       {/* Selected work */}
@@ -192,9 +194,6 @@ const HomePage = () => {
           </div>
         </div>
       </section>
-
-      {/* Did you know? — Claude for Open Source + site trivia */}
-      <DidYouKnow avatarUrl={avatarUrl} />
 
       {/* Experience */}
       <section>
