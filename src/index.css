@@ -591,22 +591,12 @@ body {
 }
 
 /* ─── Did you know? (Threads margin note) ───
-   Not a section: a note under the hero on narrow screens that hangs in the
+   Not a section: a card under the hero on narrow screens that hangs in the
    right gutter beside it once there's room for the 660px column plus the
-   note. Threads' embed won't go narrower than 270px. */
+   note. The card's own look lives in DidYouKnow.tsx; this is placement. */
 .did-you-know {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
   width: 100%;
-  max-width: 360px;
-}
-
-.did-you-know-label {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.03em;
-  color: var(--accent-ink);
+  max-width: 340px;
 }
 
 @media (min-width: 1320px) {

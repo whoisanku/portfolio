@@ -51,7 +51,7 @@ const HomePage = () => {
           Ankit <em className="italic text-accent">loves</em> designing &amp; software development.
         </h1>
         {/* Margin note beside the hero on wide screens, under it otherwise */}
-        <DidYouKnow />
+        <DidYouKnow avatarUrl={avatarUrl} />
       </section>
 
       {/* Selected work */}
