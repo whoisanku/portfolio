@@ -1,52 +1,118 @@
-import { useEffect, useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { ArrowUpRight } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useOutletContext } from "react-router-dom";
 import DidYouKnow from "../components/DidYouKnow";
+import Lightbox, { type Gallery } from "../components/Lightbox";
 import OwnerAvatar from "../components/OwnerAvatar";
 import ScienceAccounts from "../components/ScienceAccounts";
 import { pressMentions } from "../data/press";
-import { projects } from "../data/projects";
+import { projects, type Project, type Shot } from "../data/projects";
 
+/**
+ * A project's screenshots: two overlapping cards, or a placeholder. The pair
+ * fades in together once both have loaded (immediately when cached), rather
+ * than each card popping in on its own.
+ */
+const ProjectShots = ({
+  project,
+  eager,
+  onOpen,
+}: {
+  project: Project;
+  eager: boolean;
+  onOpen: (shots: Shot[], index: number) => void;
+}) => {
+  // Which cards have loaded (or failed — nothing more to wait for).
+  const [settled, setSettled] = useState<readonly boolean[]>([false, false]);
+  const stack = project.screenshotStack;
+  const shots = stack ? [stack.front, stack.back] : project.screenshot ? [project.screenshot] : [];
+
+  if (shots.length === 0) {
+    return (
+      <div className="project-stack" data-ready="">
+        <div className="project-stack-card project-stack-back project-stack-placeholder-card" />
+        <div className="project-stack-card project-stack-front project-stack-placeholder-card">
+          <span>{project.title.charAt(0)}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const settle = (index: number) => () =>
+    setSettled((prev) => (prev[index] ? prev : prev.map((v, i) => v || i === index)));
+  // Already in the cache: ready before first paint, no fade.
+  const settleIfCached = (index: number) => (img: HTMLImageElement | null) => {
+    if (img?.complete) settle(index)();
+  };
+  const open = (index: number) => (e: MouseEvent) => {
+    // The cards sit inside the project's link; open the viewer instead.
+    e.preventDefault();
+    e.stopPropagation();
+    onOpen(shots, index);
+  };
+  const ready = shots.every((_, i) => settled[i]);
+
+  if (!stack) {
+    return (
+      <div className="project-row-screenshot project-shots" data-ready={ready ? "" : undefined}>
+        <img
+          ref={settleIfCached(0)}
+          src={shots[0].thumb}
+          alt={`${project.title} screenshot`}
+          className="project-row-screenshot-img cursor-zoom-in"
+          loading={eager ? "eager" : "lazy"}
+          decoding="async"
+          onLoad={settle(0)}
+          onError={settle(0)}
+          onClick={open(0)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="project-stack project-shots" data-ready={ready ? "" : undefined}>
+      <img
+        ref={settleIfCached(1)}
+        src={stack.back.thumb}
+        alt={`${project.title} second screen`}
+        className="project-stack-card project-stack-back cursor-zoom-in"
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        draggable={false}
+        onLoad={settle(1)}
+        onError={settle(1)}
+        onClick={open(1)}
+      />
+      <img
+        ref={settleIfCached(0)}
+        src={stack.front.thumb}
+        alt={`${project.title} main screen`}
+        className="project-stack-card project-stack-front cursor-zoom-in"
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        draggable={false}
+        onLoad={settle(0)}
+        onError={settle(0)}
+        onClick={open(0)}
+      />
+    </div>
+  );
+};
 
 const HomePage = () => {
-  const { avatarUrl } = useOutletContext<{ avatarUrl: string | null }>();
-  const prefersReduced = useReducedMotion();
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [gallery, setGallery] = useState<Gallery | null>(null);
 
-  // Keyboard navigation for lightbox (Escape to close)
-  useEffect(() => {
-    if (!lightbox) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setLightbox(null);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [lightbox]);
-
-  // Lock body scroll when lightbox is open
-  useEffect(() => {
-    if (lightbox) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [lightbox]);
-
-  const openLightbox = (imageUrl: string) => {
-    setLightbox(imageUrl);
-  };
+  const openShots = (shots: Shot[], index: number) =>
+    setGallery({
+      images: shots.map((shot) => ({ src: shot.src, thumb: shot.thumb, alt: "Project screen" })),
+      index,
+    });
 
   return (
     <div className="flex flex-col gap-28">
       {/* Hero */}
       <section className="flex flex-col gap-7">
-        <OwnerAvatar src={avatarUrl} className="h-[72px] w-[72px]" />
+        <OwnerAvatar className="h-[72px] w-[72px]" />
         <h1 className="font-display text-[40px] leading-[1.08] font-normal tracking-[-0.01em] text-balance sm:text-[49px]">
           Ankit <em className="italic text-accent">loves</em> designing &amp; software development.
         </h1>
@@ -59,11 +125,9 @@ const HomePage = () => {
         </div>
         <div className="relative">
           {/* Wide screens: the note hangs in the gutter, level with the first row */}
-          <DidYouKnow avatarUrl={avatarUrl} placement="margin" />
+          <DidYouKnow placement="margin" />
           <div className="flex flex-col">
-            {projects.map((project, idx) => {
-              const eager = idx === 0;
-              return (
+            {projects.map((project, idx) => (
               <a
                 key={project.title}
                 href={project.url}
@@ -87,69 +151,14 @@ const HomePage = () => {
                   </p>
                 </div>
 
-                {/* Right: screenshot area */}
-                {project.screenshotStack ? (() => {
-                  const stack = project.screenshotStack;
-                  return (
-                    <div className="project-stack">
-                      <img
-                        src={stack.back}
-                        alt={`${project.title} second screen`}
-                        className="project-stack-card project-stack-back cursor-zoom-in"
-                        loading="lazy"
-                        draggable={false}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openLightbox(stack.back);
-                        }}
-                      />
-                      <img
-                        src={stack.front}
-                        alt={`${project.title} main screen`}
-                        className="project-stack-card project-stack-front cursor-zoom-in"
-                        loading={eager ? "eager" : "lazy"}
-                        draggable={false}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openLightbox(stack.front);
-                        }}
-                      />
-                    </div>
-                  );
-                })() : project.screenshot ? (() => {
-                  const screenshot = project.screenshot;
-                  return (
-                    <div className="project-row-screenshot">
-                      <img
-                        src={screenshot}
-                        alt={`${project.title} screenshot`}
-                        className="project-row-screenshot-img cursor-zoom-in"
-                        loading={eager ? "eager" : "lazy"}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          openLightbox(screenshot);
-                        }}
-                      />
-                    </div>
-                  );
-                })() : (
-                  <div className="project-stack">
-                    <div className="project-stack-card project-stack-back project-stack-placeholder-card" />
-                    <div className="project-stack-card project-stack-front project-stack-placeholder-card">
-                      <span>{project.title.charAt(0)}</span>
-                    </div>
-                  </div>
-                )}
+                {/* Right: screenshots */}
+                <ProjectShots project={project} eager={idx === 0} onOpen={openShots} />
               </a>
-              );
-            })}
+            ))}
           </div>
         </div>
         {/* Narrow screens: the note follows the project list */}
-        <DidYouKnow avatarUrl={avatarUrl} placement="inline" />
+        <DidYouKnow placement="inline" />
       </section>
 
       {/* Press — logo marquee */}
@@ -250,32 +259,7 @@ const HomePage = () => {
       {/* Science & astronomy — accounts I run */}
       <ScienceAccounts />
 
-      {/* Fullscreen Lightbox — centered modal: fade the scrim, scale the image
-          in from 0.96 (never scale(0)). */}
-      <AnimatePresence>
-        {lightbox && (
-          <motion.div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md p-4"
-            onClick={() => setLightbox(null)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <motion.img
-              src={lightbox}
-              alt="Project screen"
-              className="max-h-[85vh] max-w-full rounded-lg object-contain select-none shadow-[0_24px_64px_rgba(0,0,0,0.5)]"
-              onClick={(e) => e.stopPropagation()}
-              initial={prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
-              animate={prefersReduced ? { opacity: 1 } : { opacity: 1, scale: 1 }}
-              exit={prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+      <Lightbox gallery={gallery} onClose={() => setGallery(null)} />
     </div>
   );
 };

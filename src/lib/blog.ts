@@ -1,6 +1,6 @@
 import type { Agent } from "@atproto/api";
-import { getRecord, listRecords, resolveHandle, rkeyFromUri } from "./atproto";
-import { BLOG_COLLECTION, OWNER_HANDLE } from "./config";
+import { getRecord, listRecords, rkeyFromUri, withOwnerRepo } from "./atproto";
+import { BLOG_COLLECTION } from "./config";
 import type { WhiteWindBlobMetadata } from "./mediaUpload";
 
 /** WhiteWind blog entry record (com.whtwnd.blog.entry). */
@@ -39,11 +39,22 @@ export interface BlogEntry {
 
 const WORDS_PER_MINUTE = 200;
 
-function isPublic(record: BlogEntryRecord): boolean {
+function isPublic(record: Pick<BlogEntryRecord, "isDraft" | "visibility">): boolean {
   return !record.isDraft && (record.visibility ?? "public") === "public";
 }
 
-function toEntry(uri: string, value: BlogEntryRecord): BlogEntry {
+/** Listed publicly: not a draft, and visibility "public" (not unlisted/private). */
+export const isPublicEntry = (entry: BlogEntry): boolean => isPublic(entry);
+
+/**
+ * Readable by anyone with the link: public or unlisted ("url"), not a draft.
+ * Unlisted posts stay out of the index but open from a shared link, which is
+ * what the editor's "Unlisted" option promises.
+ */
+export const isViewableByLink = (entry: Pick<BlogEntry, "isDraft" | "visibility">): boolean =>
+  !entry.isDraft && (entry.visibility ?? "public") !== "author";
+
+export function toEntry(uri: string, value: BlogEntryRecord): BlogEntry {
   return {
     rkey: rkeyFromUri(uri),
     uri,
@@ -57,20 +68,40 @@ function toEntry(uri: string, value: BlogEntryRecord): BlogEntry {
   };
 }
 
-export async function listBlogEntries(showAll = false): Promise<BlogEntry[]> {
-  const did = await resolveHandle(OWNER_HANDLE);
-  const { records } = await listRecords<BlogEntryRecord>(did, BLOG_COLLECTION);
-  return records
-    .filter((r) => showAll || isPublic(r.value))
-    .map((r) => toEntry(r.uri, r.value))
-    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+const newestFirst = (a: BlogEntry, b: BlogEntry) =>
+  (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+
+/** Safety valve on paging: 10 pages × 100 entries. */
+const MAX_PAGES = 10;
+
+/**
+ * Every entry in the owner's repo, drafts and unlisted ones included, newest
+ * first. The repo is public, so this is what any visitor could read anyway;
+ * pages decide what to show (see isPublicEntry) once they know who's looking.
+ */
+export function fetchBlogEntries(signal?: AbortSignal): Promise<BlogEntry[]> {
+  return withOwnerRepo(async (identity) => {
+    const entries: BlogEntry[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const res = await listRecords<BlogEntryRecord>(identity, BLOG_COLLECTION, {
+        cursor,
+        signal,
+      });
+      for (const r of res.records) entries.push(toEntry(r.uri, r.value));
+      cursor = res.cursor;
+      if (!cursor || res.records.length === 0) break;
+    }
+    return entries.sort(newestFirst);
+  });
 }
 
-export async function getBlogEntry(rkey: string, showAll = false): Promise<BlogEntry> {
-  const did = await resolveHandle(OWNER_HANDLE);
-  const record = await getRecord<BlogEntryRecord>(did, BLOG_COLLECTION, rkey);
-  if (!showAll && !isPublic(record.value)) throw new Error("Post not found");
-  return toEntry(record.uri, record.value);
+/** One entry by rkey, whatever its visibility. */
+export function fetchBlogEntry(rkey: string, signal?: AbortSignal): Promise<BlogEntry> {
+  return withOwnerRepo(async (identity) => {
+    const record = await getRecord<BlogEntryRecord>(identity, BLOG_COLLECTION, rkey, signal);
+    return toEntry(record.uri, record.value);
+  });
 }
 
 export function markdownToPlainText(markdown: string): string {

@@ -12,6 +12,7 @@
 import { AtpAgent, ChatBskyConvoDefs, type AtpSessionData } from "@atproto/api";
 import { resolveHandle, getPdsEndpoint } from "./atproto";
 import { OWNER_HANDLE } from "./config";
+import { readJson, removeKey, writeJson } from "./storage";
 
 const CHAT_SERVICE_DID = "did:web:api.bsky.chat";
 const STORAGE_KEY = "anku-chat-session";
@@ -32,11 +33,10 @@ export function getOwnerDid(): Promise<string> {
 
 function persist(service: string, session: AtpSessionData | undefined) {
   if (!session) {
-    localStorage.removeItem(STORAGE_KEY);
+    removeKey(STORAGE_KEY);
     return;
   }
-  const data: StoredSession = { service, session };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  writeJson(STORAGE_KEY, { service, session } satisfies StoredSession);
 }
 
 /** A chat agent already routed through the DM proxy. */
@@ -66,10 +66,10 @@ export async function loginWithAppPassword(
 
 /** Restore a previously saved session, or null if none / expired. */
 export async function resumeChatSession(): Promise<AtpAgent | null> {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return null;
+  const stored = readJson<StoredSession>(STORAGE_KEY);
+  if (!stored?.service || !stored.session) return null;
   try {
-    const { service, session } = JSON.parse(raw) as StoredSession;
+    const { service, session } = stored;
     const agent = new AtpAgent({
       service,
       persistSession: (_evt, s) => persist(service, s),
@@ -77,13 +77,13 @@ export async function resumeChatSession(): Promise<AtpAgent | null> {
     await agent.resumeSession(session);
     return agent;
   } catch {
-    localStorage.removeItem(STORAGE_KEY);
+    removeKey(STORAGE_KEY);
     return null;
   }
 }
 
 export function clearChatSession() {
-  localStorage.removeItem(STORAGE_KEY);
+  removeKey(STORAGE_KEY);
 }
 
 /** Get (or open) the 1:1 conversation between the visitor and the owner. */
@@ -116,13 +116,14 @@ export async function fetchMessages(
   };
 }
 
-/** Send a text message into the conversation. */
+/** Send a text message into the conversation; resolves with the stored message. */
 export async function sendMessage(
   agent: AtpAgent,
   convoId: string,
   text: string,
-): Promise<void> {
-  await chat(agent).sendMessage({ convoId, message: { text } });
+): Promise<ChatMessage> {
+  const { data } = await chat(agent).sendMessage({ convoId, message: { text } });
+  return data;
 }
 
 /** Turn raw XRPC errors from getConvoForMembers into something human. */

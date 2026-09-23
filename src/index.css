@@ -1,6 +1,16 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* Self-hosted fonts (same Google Fonts files, served from our own origin so
+   there's no render-blocking third-party stylesheet). Newsreader keeps its
+   optical-size axis, as before. The latin files are preloaded from
+   index.html by the build (see vite.config.ts). */
+@import "@fontsource-variable/newsreader/opsz.css";
+@import "@fontsource-variable/newsreader/opsz-italic.css";
+@import "@fontsource-variable/schibsted-grotesk/wght.css";
+@import "@fontsource/spline-sans-mono/latin-400.css";
+@import "@fontsource/spline-sans-mono/latin-500.css";
+
 /* Make Tailwind's dark: variant follow the manual theme attribute */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
@@ -51,8 +61,8 @@
   --color-line: var(--line);
   --color-accent: var(--accent-ink);
 
-  --font-display: "Newsreader", Georgia, serif;
-  --font-sans: "Schibsted Grotesk", system-ui, sans-serif;
+  --font-display: "Newsreader Variable", Georgia, serif;
+  --font-sans: "Schibsted Grotesk Variable", system-ui, sans-serif;
   --font-mono: "Spline Sans Mono", ui-monospace, monospace;
 }
 
@@ -353,7 +363,9 @@ body {
    Skip rendering (layout + paint) for posts scrolled out of view; the browser
    remembers each one's real height (`auto`) so the scrollbar stays stable. This
    keeps long image/video feeds smooth instead of repainting every card per
-   scroll frame. */
+   scroll frame. Back/Forward restores to the card on screen
+   (data-scroll-anchor, see ScrollManager), not a pixel offset, so estimated
+   heights above it don't matter. */
 .post-card {
   content-visibility: auto;
   contain-intrinsic-size: auto 480px;
@@ -1130,6 +1142,60 @@ body {
   line-height: 1.85;
 }
 
+/* ─── Loading states ───
+   Images hold their slot (the wrapper's bg-raise) until they've loaded,
+   then fade in once. It's an animation rather than a transition so it never
+   overrides an image's own transitions (hover zooms); images already in the
+   cache are marked "instant" by <Img> and simply appear. */
+.img-fade:not([data-loaded]) {
+  opacity: 0;
+}
+
+.img-fade[data-loaded="fade"] {
+  animation: fade-in 360ms var(--ease-out) both;
+}
+
+/* A project's pair of cards fades in together once both have loaded */
+.project-shots {
+  transition: opacity 360ms var(--ease-out);
+}
+
+.project-shots:not([data-ready]) {
+  opacity: 0;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Skeleton blocks: the raised paper colour, breathing gently */
+.skeleton {
+  background: var(--bg-raise);
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Route changes: the new page settles in with a short fade instead of
+   swapping in on a single frame. Opacity only — a transform here would
+   re-anchor the page's fixed-position controls while it runs. */
+.page-enter {
+  animation: fade-in 200ms var(--ease-out) both;
+}
+
 /* ─── Reduced motion ───
    Keep opacity/color cues that aid comprehension; drop travel and scale.
    The press marquee is handled in its own block above; Framer Motion surfaces
@@ -1146,6 +1212,11 @@ body {
   .project-stack-back:hover,
   .project-stack-front:hover {
     transform: none;
+  }
+
+  /* Skeletons hold still */
+  .skeleton {
+    animation: none;
   }
 
   /* Indeterminate loader pulses in place instead of shuttling across */

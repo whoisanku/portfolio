@@ -1,6 +1,7 @@
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import {
   resolvedTheme,
   toggleTheme,
@@ -29,7 +30,7 @@ const ThemeToggle = () => {
           crossfade in place, so a frequently-tapped control never waits for the
           old icon to leave before the new one arrives. */}
       <AnimatePresence initial={false}>
-        <motion.span
+        <m.span
           key={theme}
           className="absolute inset-0 flex items-center justify-center"
           initial={prefersReduced ? { opacity: 0 } : { opacity: 0, rotate: -50, scale: 0.7 }}
@@ -38,7 +39,7 @@ const ThemeToggle = () => {
           transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
         >
           {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-        </motion.span>
+        </m.span>
       </AnimatePresence>
     </button>
   );

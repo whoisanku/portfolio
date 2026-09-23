@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
-import { PUBLIC_API } from "../lib/config";
+import { useQuery } from "@tanstack/react-query";
+import { cloudinary } from "../lib/image";
+import { profileAvatarsQuery } from "../lib/queries";
+import Img from "./Img";
 
 
 interface ScienceAccount {
@@ -33,36 +35,18 @@ const accounts: ScienceAccount[] = [
     name: "Cosmos Archive",
     url: "https://x.com/cosmosarcive",
     platform: "x",
-    localAvatar: "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/science-avatar",
+    localAvatar: cloudinary(
+      "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/science-avatar",
+      "c_fill,w_96,h_96",
+    ),
   },
 ];
 
+const actors = accounts.map((a) => a.actor).filter((a): a is string => Boolean(a));
+
 const ScienceAccounts = () => {
-  const [avatars, setAvatars] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const actors = accounts
-      .map((a) => a.actor)
-      .filter((a): a is string => Boolean(a));
-    if (actors.length === 0) return;
-
-    const query = actors.map((a) => `actors=${encodeURIComponent(a)}`).join("&");
-    fetch(`${PUBLIC_API}/xrpc/app.bsky.actor.getProfiles?${query}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch profiles");
-        return res.json();
-      })
-      .then((data: { profiles?: { handle: string; avatar?: string }[] }) => {
-        const map: Record<string, string> = {};
-        for (const profile of data.profiles ?? []) {
-          if (profile.avatar) map[profile.handle] = profile.avatar;
-        }
-        setAvatars(map);
-      })
-      .catch(() => {
-        /* chips fall back to a monogram avatar */
-      });
-  }, []);
+  // Chips fall back to a monogram until (or unless) the avatars arrive.
+  const { data: avatars = {} } = useQuery(profileAvatarsQuery(actors));
 
   return (
     <section>
@@ -86,11 +70,13 @@ const ScienceAccounts = () => {
             >
               <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-line bg-raise">
                 {avatar ? (
-                  <img
+                  <Img
                     src={avatar}
                     alt=""
                     loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-300 fine:group-hover:scale-115"
+                    width={28}
+                    height={28}
+                    className="h-full w-full object-cover transition-[transform,opacity] duration-300 fine:group-hover:scale-115"
                   />
                 ) : (
                   <span className="flex h-full w-full items-center justify-center font-display text-[13px] text-ink-3 transition-transform duration-300 fine:group-hover:scale-115">

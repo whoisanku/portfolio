@@ -13,11 +13,14 @@
  * to the original URL.
  */
 const WIDTHS = [256, 384, 640, 828, 1280, 1920];
-const HOSTS = new Set(["api.grove.storage"]);
+const HOSTS = new Set(["api.grove.storage", "cdn.bsky.app"]);
 const QUALITY = 75;
 
-/** The endpoint only exists on Vercel; every other build serves from localhost. */
-const ENABLED =
+/**
+ * The endpoint only exists on Vercel; every other build serves from
+ * localhost. The inline profile script in index.html mirrors this check.
+ */
+export const OPTIMIZER_ENABLED =
   import.meta.env.PROD &&
   !["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
 
@@ -25,7 +28,7 @@ const ENABLED =
 export const COLUMN_SIZES = "(max-width: 660px) calc(100vw - 56px), 604px";
 
 function optimizable(url: string): boolean {
-  if (!ENABLED) return false;
+  if (!OPTIMIZER_ENABLED) return false;
   try {
     const { protocol, hostname } = new URL(url);
     return protocol === "https:" && HOSTS.has(hostname);
@@ -34,8 +37,14 @@ function optimizable(url: string): boolean {
   }
 }
 
-const optimizedUrl = (url: string, width: number) =>
+/** One optimized variant. `width` must be one of WIDTHS. */
+export const optimizedUrl = (url: string, width: number) =>
   `/_vercel/image?url=${encodeURIComponent(url)}&w=${width}&q=${QUALITY}`;
+
+/** A single fixed-width variant, or the original where the optimizer can't help. */
+export function optimizedSrc(url: string, width: (typeof WIDTHS)[number]): string {
+  return optimizable(url) ? optimizedUrl(url, width) : url;
+}
 
 /**
  * `src`, `srcSet` and `sizes` to spread onto an <img>. `sizes` is the
@@ -51,4 +60,26 @@ export function responsiveImage(
     srcSet: WIDTHS.map((w) => `${optimizedUrl(url, w)} ${w}w`).join(", "),
     sizes,
   };
+}
+
+/* ───────────────────────── Cloudinary ─────────────────────────
+   Project screenshots and press logos live on Cloudinary, which resizes via
+   a transformation segment in the URL path. */
+
+const CLOUDINARY_UPLOAD = /^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.*)$/;
+
+/**
+ * Add a transformation to a Cloudinary delivery URL (merged into the first
+ * transformation segment when there is one). Other URLs pass through as-is.
+ */
+export function cloudinary(url: string, transformation: string): string {
+  const match = url.match(CLOUDINARY_UPLOAD);
+  if (!match) return url;
+  const [, base, rest] = match;
+  const [first, ...others] = rest.split("/");
+  // A leading segment like "f_auto,q_auto" is a transformation, not a folder.
+  if (/^[a-z]{1,3}_[^/]*(,[a-z]{1,3}_[^/]*)*$/.test(first) && others.length > 0) {
+    return `${base}${first},${transformation}/${others.join("/")}`;
+  }
+  return `${base}${transformation}/${rest}`;
 }

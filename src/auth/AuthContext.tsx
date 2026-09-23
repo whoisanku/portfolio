@@ -1,20 +1,20 @@
 /* eslint-disable react-refresh/only-export-components */
-import { Agent } from "@atproto/api";
+import type { Agent } from "@atproto/api";
 import type { OAuthSession } from "@atproto/oauth-client-browser";
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import { resolveHandle } from "../lib/atproto";
 import { OWNER_HANDLE } from "../lib/config";
-import { getOAuthClient } from "../lib/oauth";
 import type { BlogEntry } from "../lib/blog";
+import { readString } from "../lib/storage";
 import { useToast } from "../components/Toast";
 import {
   clearAuthReturnPath,
@@ -31,6 +31,25 @@ export type AuthStatus = "loading" | "signed-out" | "signed-in";
 const IS_DEV = window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1" ||
   window.location.hostname === "[::1]";
+
+/**
+ * Where @atproto/oauth-client-browser records the signed-in account. When
+ * it's absent the client's init() has nothing to restore, so there's no
+ * reason to download the OAuth stack at all.
+ */
+const OAUTH_SUB_KEY = "@@atproto/oauth-client-browser(sub)";
+
+/** Whether this page load has an OAuth session to restore or finish. */
+const needsOAuthInit = () =>
+  !IS_DEV &&
+  (isOAuthCallbackPath() || hasPendingAdminAuth() || readString(OAUTH_SUB_KEY) != null);
+
+const loadRuntime = () => import("./oauthRuntime");
+
+/** Start fetching the OAuth code ahead of a likely sign-in click. */
+export const preloadAuthRuntime = () => {
+  if (!IS_DEV) void loadRuntime();
+};
 
 interface AuthContextValue {
   status: AuthStatus;
@@ -54,11 +73,10 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Start signed-out everywhere. In dev, OAuth is bypassed but sign-in is still
-  // explicit (clicking the lock flips to signed-in); in prod we resolve any
-  // persisted session during init below.
+  // Visitors (no stored session) are known to be signed out from the first
+  // render; only a page load with a session to restore starts in "loading".
   const [status, setStatus] = useState<AuthStatus>(() =>
-    IS_DEV ? "signed-out" : "loading",
+    needsOAuthInit() ? "loading" : "signed-out",
   );
   const [agent, setAgent] = useState<Agent | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -75,44 +93,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
+    if (!needsOAuthInit()) return;
 
-    // Dev mode: auto-signed-in with no agent — no OAuth needed.
-    if (IS_DEV) return;
-
-    // Production: run the OAuth init flow.
     (async () => {
-      try {
-        const client = await getOAuthClient();
-        const result = await client.init();
-        const shouldOpenAdmin = hasPendingAdminAuth() || isOAuthCallbackPath();
-        const finishOAuthReturn = () => {
-          const wasCallback = isOAuthCallbackPath();
-          const returnPath = readAuthReturnPath();
-          clearPendingAdminAuth();
-          clearAuthReturnPath();
-          if (wasCallback) navigate(returnPath, { replace: true });
-        };
+      const shouldOpenAdmin = hasPendingAdminAuth() || isOAuthCallbackPath();
+      const finishOAuthReturn = () => {
+        const wasCallback = isOAuthCallbackPath();
+        const returnPath = readAuthReturnPath();
+        clearPendingAdminAuth();
+        clearAuthReturnPath();
+        if (wasCallback) navigate(returnPath, { replace: true });
+      };
 
-        if (!result) {
+      try {
+        const { initOwnerSession } = await loadRuntime();
+        const result = await initOwnerSession();
+
+        if (result.kind === "none") {
           setStatus("signed-out");
           if (shouldOpenAdmin) finishOAuthReturn();
           return;
         }
 
-        // The admin panel belongs to the site owner only.
-        const ownerDid = await resolveHandle(OWNER_HANDLE);
-        if (result.session.did !== ownerDid) {
-          await result.session.signOut();
-          const msg = `Only @${OWNER_HANDLE} can sign in here.`;
-          setError(msg);
+        if (result.kind === "blocked") {
+          setError(result.message);
           setStatus("signed-out");
-          toast.error("Sign-in blocked", { description: msg });
+          toast.error("Sign-in blocked", { description: result.message });
           if (shouldOpenAdmin) finishOAuthReturn();
           return;
         }
 
         sessionRef.current = result.session;
-        setAgent(new Agent(result.session));
+        setAgent(result.agent);
         setStatus("signed-in");
 
         // Only greet + open the panel when an actual sign-in just completed —
@@ -134,14 +146,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const msg = err instanceof Error ? err.message : "Sign-in failed";
         setError(msg);
         setStatus("signed-out");
-        toast.error("Couldn't complete sign-in", { description: msg });
+        // A failed silent restore (expired session) isn't worth an alarm;
+        // a failed sign-in the owner just attempted is.
+        if (shouldOpenAdmin) toast.error("Couldn't complete sign-in", { description: msg });
       } finally {
         // The login round-trip is over (success or not) — stop the lock spinner.
         setSigningIn(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [navigate, toast]);
 
   const signIn = useCallback(async () => {
     setError(null);
@@ -159,8 +172,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     rememberAuthReturnPath();
     markPendingAdminAuth();
     try {
-      const client = await getOAuthClient();
-      await client.signIn(OWNER_HANDLE, { state: "admin" });
+      const { startOwnerSignIn } = await loadRuntime();
+      await startOwnerSignIn();
       // Navigation happens above; nothing runs after it on success.
     } catch (err) {
       setSigningIn(false);
@@ -174,7 +187,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (!IS_DEV) {
-      await sessionRef.current?.signOut();
+      try {
+        await sessionRef.current?.signOut();
+      } catch {
+        // Token revocation is best-effort; the local session is gone either way.
+      }
       sessionRef.current = null;
     }
     setAgent(null);
@@ -194,26 +211,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const openModal = useCallback(() => setModalOpen(true), []);
   const closeModal = useCallback(() => setModalOpen(false), []);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        status,
-        agent,
-        error,
-        signingIn,
-        devMode: IS_DEV,
-        signIn,
-        signOut,
-        modalOpen,
-        openModal,
-        closeModal,
-        editingBlog,
-        setEditingBlog,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      status,
+      agent,
+      error,
+      signingIn,
+      devMode: IS_DEV,
+      signIn,
+      signOut,
+      modalOpen,
+      openModal,
+      closeModal,
+      editingBlog,
+      setEditingBlog,
+    }),
+    [
+      status,
+      agent,
+      error,
+      signingIn,
+      signIn,
+      signOut,
+      modalOpen,
+      openModal,
+      closeModal,
+      editingBlog,
+      setEditingBlog,
+    ],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

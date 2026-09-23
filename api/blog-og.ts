@@ -11,6 +11,11 @@
  * Humans and crawlers get byte-identical HTML — no user-agent sniffing — and
  * React hydrates over it exactly as it does on every other route.
  *
+ * The record it fetched is also embedded in the page (window.__BLOG_BOOT__,
+ * with the resolved DID and PDS), so a visitor landing on a post sees it
+ * without the browser repeating the same three lookups. The app still
+ * refreshes it in the background: this HTML may be a CDN-cached copy.
+ *
  * Deliberately dependency-free: this runs on the edge runtime, and anything it
  * imported from src/ would have to stay edge-safe forever. The markdown and
  * visibility helpers below mirror src/lib/blog.ts, which is the source of truth.
@@ -36,6 +41,11 @@ interface BlogEntryRecord {
   visibility?: "public" | "url" | "author";
   isDraft?: boolean;
   ogp?: { url?: string; width?: number; height?: number };
+}
+
+interface Identity {
+  did: string;
+  pds: string;
 }
 
 interface Meta {
@@ -76,22 +86,45 @@ async function getPdsEndpoint(did: string, signal: AbortSignal): Promise<string>
   return pds;
 }
 
+/** Isolates are reused between requests; the owner's identity barely changes. */
+const IDENTITY_TTL_MS = 10 * 60_000;
+let identityCache: { value: Identity; at: number } | null = null;
+
+async function ownerIdentity(signal: AbortSignal): Promise<Identity> {
+  if (identityCache && Date.now() - identityCache.at < IDENTITY_TTL_MS) {
+    return identityCache.value;
+  }
+  const did = await resolveDid(signal);
+  const pds = await getPdsEndpoint(did, signal);
+  identityCache = { value: { did, pds }, at: Date.now() };
+  return identityCache.value;
+}
+
 async function fetchEntry(
   rkey: string,
   signal: AbortSignal,
-): Promise<BlogEntryRecord | null> {
-  const did = await resolveDid(signal);
-  const pds = await getPdsEndpoint(did, signal);
-  const record = await getJson<{ value: BlogEntryRecord }>(
-    `${pds}/xrpc/com.atproto.repo.getRecord?repo=${did}&collection=${BLOG_COLLECTION}&rkey=${encodeURIComponent(rkey)}`,
+): Promise<{ identity: Identity; uri: string; value: BlogEntryRecord } | null> {
+  const identity = await ownerIdentity(signal);
+  const params = new URLSearchParams({
+    repo: identity.did,
+    collection: BLOG_COLLECTION,
+    rkey,
+  });
+  const record = await getJson<{ uri?: string; value?: BlogEntryRecord }>(
+    `${identity.pds}/xrpc/com.atproto.repo.getRecord?${params}`,
     signal,
   );
-  return record.value ?? null;
+  if (!record.uri || !record.value) return null;
+  return { identity, uri: record.uri, value: record.value };
 }
 
-/** Mirrors isPublic() in src/lib/blog.ts — drafts must not leak into previews. */
-function isPublic(record: BlogEntryRecord): boolean {
-  return !record.isDraft && (record.visibility ?? "public") === "public";
+/**
+ * Mirrors isViewableByLink() in src/lib/blog.ts: public and unlisted posts
+ * open from a shared link; drafts and private posts must not leak into
+ * previews (or the embedded record).
+ */
+function isViewableByLink(record: BlogEntryRecord): boolean {
+  return !record.isDraft && (record.visibility ?? "public") !== "author";
 }
 
 /** Mirrors markdownToPlainText() in src/lib/blog.ts. */
@@ -168,18 +201,37 @@ function buildTags(meta: Meta): string {
 }
 
 /**
+ * JSON that's safe inside an inline <script>: nothing in it can close the
+ * tag or start an HTML comment, and the JS line separators are escaped.
+ */
+function scriptJson(value: unknown): string {
+  return JSON.stringify(value)
+    .replaceAll("<", "\\u003c")
+    .replaceAll(">", "\\u003e")
+    .replaceAll("&", "\\u0026")
+    .replaceAll("\u2028", "\\u2028")
+    .replaceAll("\u2029", "\\u2029");
+}
+
+/** Hand the fetched record to the app (read by src/lib/queries.ts). */
+function bootScript(boot: { identity: Identity; rkey: string; record: unknown }): string {
+  return `<script>window.__BLOG_BOOT__=${scriptJson(boot)};</script>`;
+}
+
+/**
  * Swap the shell's site-wide tags for this post's. Anything not listed here
  * (charset, viewport, fonts, the theme script) is left untouched.
  */
-export function injectMeta(html: string, meta: Meta): string {
+export function injectMeta(html: string, meta: Meta, extraHead = ""): string {
   const stripped = html
     .replace(/<title>[\s\S]*?<\/title>/i, "")
     .replace(/<meta\s+name="description"[\s\S]*?>/i, "")
     .replace(/<meta\s+property="og:[\s\S]*?>/gi, "")
     .replace(/<meta\s+name="twitter:[\s\S]*?>/gi, "");
 
+  // A replacer function, so `$&`-style patterns in post text stay literal.
   return stripped.includes("</head>")
-    ? stripped.replace("</head>", `  ${buildTags(meta)}\n</head>`)
+    ? stripped.replace("</head>", () => `  ${buildTags(meta)}\n  ${extraHead}\n</head>`)
     : stripped;
 }
 
@@ -205,20 +257,29 @@ export default async function handler(req: Request): Promise<Response> {
   const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
 
   try {
-    const record = await fetchEntry(rkey, controller.signal);
-    if (!record || !isPublic(record)) return fallback();
+    const entry = await fetchEntry(rkey, controller.signal);
+    if (!entry || !isViewableByLink(entry.value)) return fallback();
 
+    const record = entry.value;
     const content = record.content ?? "";
-    const html = injectMeta(shell, {
-      title: record.title?.trim() || "Untitled",
-      description:
-        excerpt(content) || "Ankit Bhandari - loves designing and software development.",
-      image: coverUrl(record),
-      imageWidth: record.ogp?.url ? record.ogp.width : undefined,
-      imageHeight: record.ogp?.url ? record.ogp.height : undefined,
-      url: `${url.origin}/blog/${rkey}`,
-      publishedAt: record.createdAt,
-    });
+    const html = injectMeta(
+      shell,
+      {
+        title: record.title?.trim() || "Untitled",
+        description:
+          excerpt(content) || "Ankit Bhandari - loves designing and software development.",
+        image: coverUrl(record),
+        imageWidth: record.ogp?.url ? record.ogp.width : undefined,
+        imageHeight: record.ogp?.url ? record.ogp.height : undefined,
+        url: `${url.origin}/blog/${rkey}`,
+        publishedAt: record.createdAt,
+      },
+      bootScript({
+        identity: entry.identity,
+        rkey,
+        record: { uri: entry.uri, value: record },
+      }),
+    );
 
     return new Response(html, {
       headers: {

@@ -1,16 +1,47 @@
-import { Download, Loader2, Lock, LockOpen, LogOut, User, X } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Download, Loader2, Lock, LockOpen, LogOut, X } from "lucide-react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import blueskyLogo from "../assets/bsky.svg";
-import { useAuth } from "../auth/AuthContext";
-import { loadedOwnerProfile, ownerProfile } from "../lib/ownerProfile";
+import { preloadAuthRuntime, useAuth } from "../auth/AuthContext";
 import { OWNER_HANDLE } from "../lib/config";
-import AdminModal from "./AdminModal";
+import { readString, writeString } from "../lib/storage";
+import { prefetchOnIntent, whenIdle } from "../routes";
 import AnimatedSign from "./AnimatedSign";
 import ChatWidget from "./ChatWidget";
-import OwnerAvatar from "./OwnerAvatar";
+import Loader from "./Loader";
+import OwnerAvatar, { OwnerAvatarIcon } from "./OwnerAvatar";
+import ScrollManager from "./ScrollManager";
+import { BlogPostSkeleton } from "./Skeleton";
 import ThemeToggle from "./ThemeToggle";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
+
+/**
+ * The writing studio (editors, uploads, the atproto client) is owner-only,
+ * so it loads when first opened — or ahead of time once the owner is known
+ * to be signed in.
+ */
+const loadAdminModal = () => import("./AdminModal");
+const AdminModal = lazy(loadAdminModal);
+
+const RESUME_TIP_KEY = "resume-tip-seen";
+
+/**
+ * The history entry this page load started on (React Router keeps its key in
+ * history.state, so it survives reloads). That first page should simply be
+ * there; later ones get a short entrance fade.
+ */
+const INITIAL_ENTRY_KEY =
+  (window.history.state as { key?: string } | null)?.key ?? "default";
 
 const navItems = [
   { to: "/", label: "work" },
@@ -60,10 +91,13 @@ const TopNav = () => {
   // One-shot "draw on" for first mount
   const [ready, setReady] = useState(false);
 
-  useLayoutEffect(() => {
+  const measure = useCallback(() => {
     const el = linkRefs.current[activeIndex];
     const nav = navRef.current;
-    if (!el || !nav) return;
+    if (!el || !nav) {
+      setUnderline(null); // off-nav route (404, callback): no underline
+      return;
+    }
 
     const navRect = nav.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
@@ -72,15 +106,35 @@ const TopNav = () => {
     const width = elRect.width - shrinkAmount;
 
     setUnderline((prev) => {
+      if (prev && Math.abs(prev.left - left) < 0.5 && Math.abs(prev.width - width) < 0.5) {
+        return prev;
+      }
       // Rebuild path only when width actually changes (avoid thrash)
       const path =
         prev && Math.abs(prev.width - width) < 1 ? prev.path : buildWavyPath(width);
       return { left, width, path };
     });
+  }, [activeIndex]);
 
+  useLayoutEffect(() => {
+    measure();
     // Mark ready after first measurement so the SVG fades in instead of popping
-    if (!ready) requestAnimationFrame(() => setReady(true));
-  }, [activeIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+    const frame = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(frame);
+  }, [measure]);
+
+  // The words change width when the web font replaces the fallback (and on
+  // resize); keep the underline under the active word.
+  useEffect(() => {
+    const observer = new ResizeObserver(() => measure());
+    for (const el of linkRefs.current) if (el) observer.observe(el);
+    let alive = true;
+    void document.fonts?.ready.then(() => alive && measure());
+    return () => {
+      alive = false;
+      observer.disconnect();
+    };
+  }, [measure]);
 
   const SVG_H = 8;
 
@@ -95,6 +149,7 @@ const TopNav = () => {
             ref={(el) => { linkRefs.current[i] = el; }}
             className="pressable group relative text-[15px] tracking-[0.03em]"
             style={{ paddingBottom: 8 }}
+            {...prefetchOnIntent(item.to)}
           >
             <span
               className={`font-mono transition-colors duration-200 ${active ? "text-accent" : "text-ink-3 group-hover:text-ink"
@@ -152,12 +207,18 @@ const DROPDOWN_RADIUS = 10;
  * right edge pointing up at the lock icon. Matches the resume tooltip's style.
  * Measures content height so the bubble fits any menu without distortion.
  */
-const DropdownShell = ({ width, children }: { width: number; children: React.ReactNode }) => {
+const DropdownShell = ({ width, children }: { width: number; children: ReactNode }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
 
+  // Follow the content's height (status text and errors come and go).
   useLayoutEffect(() => {
-    if (contentRef.current) setHeight(contentRef.current.offsetHeight);
+    const el = contentRef.current;
+    if (!el) return;
+    setHeight(el.offsetHeight);
+    const observer = new ResizeObserver(() => setHeight(el.offsetHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
   const top = DROPDOWN_CARET;
@@ -208,7 +269,7 @@ const DropdownShell = ({ width, children }: { width: number; children: React.Rea
   );
 };
 
-const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
+const AdminLock = () => {
   const { status, error: authError, signingIn, signIn, signOut, openModal } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -216,20 +277,27 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
 
   const handleLockClick = () => {
     setDropdownOpen((prev) => !prev);
+    // Opening the menu signals intent: fetch what the next click needs.
+    if (isSignedIn) void loadAdminModal();
+    else preloadAuthRuntime();
   };
 
-  const handleOutsideClick = useCallback((e: MouseEvent) => {
-    if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-      setDropdownOpen(false);
-    }
-  }, []);
-
+  // Close on a press anywhere else (mouse or touch) or on Escape.
   useEffect(() => {
-    if (dropdownOpen) {
-      document.addEventListener("mousedown", handleOutsideClick);
-    }
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, [dropdownOpen, handleOutsideClick]);
+    if (!dropdownOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!dropdownRef.current?.contains(e.target as Node)) setDropdownOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDropdownOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [dropdownOpen]);
 
   return (
     <div ref={dropdownRef} className="relative">
@@ -248,6 +316,7 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
               : "Admin sign in"
         }
         aria-busy={signingIn || undefined}
+        aria-expanded={dropdownOpen}
       >
         {signingIn ? (
           <Loader2 size={15} className="animate-spin" />
@@ -262,17 +331,7 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
       {dropdownOpen && isSignedIn && (
         <DropdownShell width={208}>
           <div className="flex items-center gap-2.5 border-b border-line px-4 py-3">
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={OWNER_HANDLE}
-                className="h-6 w-6 shrink-0 rounded-full border border-line object-cover"
-              />
-            ) : (
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-raise">
-                <User size={12} className="text-ink-3" />
-              </span>
-            )}
+            <OwnerAvatarIcon className="h-6 w-6 border border-line" alt={OWNER_HANDLE} />
             <span className="truncate font-mono text-[11px] text-ink-3">
               @{OWNER_HANDLE}
             </span>
@@ -342,17 +401,7 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
                 </>
               ) : (
                 <>
-                  {avatarUrl ? (
-                    <img
-                      src={avatarUrl}
-                      alt={OWNER_HANDLE}
-                      className="h-5 w-5 shrink-0 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-raise">
-                      <User size={12} className="text-ink-3" />
-                    </span>
-                  )}
+                  <OwnerAvatarIcon className="h-5 w-5" alt={OWNER_HANDLE} />
                   <span>{OWNER_HANDLE}</span>
                 </>
               )}
@@ -365,39 +414,56 @@ const AdminLock = ({ avatarUrl }: { avatarUrl: string | null }) => {
   );
 };
 
-const Layout = () => {
+/** While a lazy page loads for the first time (normally prefetched already). */
+const RouteFallback = () => {
   const { pathname } = useLocation();
+  return pathname.startsWith("/blog/") ? <BlogPostSkeleton /> : <Loader />;
+};
+
+/** Shown for the moment the studio's code is still arriving. */
+const AdminModalFallback = () => (
+  <div className="admin-modal-overlay" role="status">
+    <Loader2 size={22} className="animate-spin text-paper" aria-label="Opening editor" />
+  </div>
+);
+
+const Layout = () => {
+  const { pathname, key } = useLocation();
   const prefersReduced = useReducedMotion();
-  const [profile, setProfile] = useState(loadedOwnerProfile);
-  const avatarUrl = profile.avatar;
+  const { status, modalOpen } = useAuth();
   const [showResumeTip, setShowResumeTip] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem("resume-tip-seen")) {
+    if (!readString(RESUME_TIP_KEY)) {
       const t = setTimeout(() => setShowResumeTip(true), 900);
       return () => clearTimeout(t);
     }
   }, []);
 
+  // The owner is signed in: have the studio ready before they reach for it.
+  useEffect(() => {
+    if (status === "signed-in") return whenIdle(() => void loadAdminModal());
+  }, [status]);
+
   const dismissResumeTip = () => {
-    localStorage.setItem("resume-tip-seen", "1");
+    writeString(RESUME_TIP_KEY, "1");
     setShowResumeTip(false);
   };
 
-  // Normally a no-op: the first render already waited for the profile. This
-  // only matters if it arrived after main.tsx stopped waiting.
-  useEffect(() => {
-    void ownerProfile.then(setProfile);
-  }, []);
-
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-[660px] flex-col px-7 pt-8 pb-12">
-      <AdminModal />
+      <ScrollManager />
+
+      {modalOpen && (
+        <Suspense fallback={<AdminModalFallback />}>
+          <AdminModal />
+        </Suspense>
+      )}
 
       <header className="mb-16 flex items-center justify-between gap-4 sm:mb-20">
         {pathname !== "/" ? (
-          <Link to="/" className="group flex items-center gap-3">
-            <OwnerAvatar src={avatarUrl} className="h-9 w-9" />
+          <Link to="/" className="group flex items-center gap-3" aria-label="Home">
+            <OwnerAvatar className="h-9 w-9" />
           </Link>
         ) : (
           <div className="h-9 w-9" />
@@ -418,7 +484,7 @@ const Layout = () => {
               </a>
               <AnimatePresence>
                 {showResumeTip && (
-                  <motion.div
+                  <m.div
                     initial={prefersReduced ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.96 }}
                     animate={prefersReduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
                     exit={prefersReduced ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.96 }}
@@ -467,17 +533,20 @@ const Layout = () => {
                         <X size={11} />
                       </button>
                     </div>
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
             </div>
-            <AdminLock avatarUrl={avatarUrl} />
+            <AdminLock />
           </div>
         </div>
       </header>
 
-      <main className="flex-1">
-        <Outlet context={{ avatarUrl }} />
+      {/* Keyed by path so each page gets the short entrance fade (not the first). */}
+      <main key={pathname} className={`flex-1 ${key === INITIAL_ENTRY_KEY ? "" : "page-enter"}`}>
+        <Suspense fallback={<RouteFallback />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <footer className="mt-28 flex flex-col gap-1">
@@ -588,7 +657,7 @@ const Layout = () => {
         </div>
       </footer>
 
-      <ChatWidget ownerAvatar={avatarUrl} ownerName={profile.displayName} />
+      <ChatWidget />
     </div>
   );
 };
