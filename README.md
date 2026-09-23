@@ -29,6 +29,11 @@ Featured by **Lifehacker**, **Mashable**, **Popular Science**, and more.
 
 ---
 
+### [Churpico](https://www.churpico.com)
+Himalayan yak cheese dog chews from Nepal, with an evidence-led journal on chew safety, sizing and how churpi is made.
+
+---
+
 ### [Sluice](https://thesluice.xyz)
 Decentralized AI routing layer that sends each request to the best provider across cost, speed, quality, and privacy.
 

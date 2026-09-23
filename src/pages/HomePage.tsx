@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useOutletContext } from "react-router-dom";
+import DidYouKnow from "../components/DidYouKnow";
 import OwnerAvatar from "../components/OwnerAvatar";
 import ScienceAccounts from "../components/ScienceAccounts";
 import { pressMentions } from "../data/press";
@@ -56,93 +57,99 @@ const HomePage = () => {
         <div className="section-label section-label-strong mb-5">
           <span>Selected work</span>
         </div>
-        <div className="flex flex-col">
-          {projects.map((project, idx) => {
-            const eager = idx === 0;
-            return (
-            <a
-              key={project.title}
-              href={project.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="project-row group"
-            >
-              {/* Left: text */}
-              <div className="project-row-text">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-display text-[22px] leading-[1.2] font-medium transition-colors duration-200 group-hover:text-accent">
-                    {project.title}
-                  </h3>
-                  <ArrowUpRight
-                    size={16}
-                    className="shrink-0 text-ink-3 opacity-0 -translate-x-1 transition duration-200 group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
-                  />
+        <div className="relative">
+          {/* Wide screens: the note hangs in the gutter, level with the first row */}
+          <DidYouKnow avatarUrl={avatarUrl} placement="margin" />
+          <div className="flex flex-col">
+            {projects.map((project, idx) => {
+              const eager = idx === 0;
+              return (
+              <a
+                key={project.title}
+                href={project.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="project-row group"
+              >
+                {/* Left: text */}
+                <div className="project-row-text">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display text-[22px] leading-[1.2] font-medium transition-colors duration-200 group-hover:text-accent">
+                      {project.title}
+                    </h3>
+                    <ArrowUpRight
+                      size={16}
+                      className="shrink-0 text-ink-3 opacity-0 -translate-x-1 transition duration-200 group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
+                    />
+                  </div>
+                  <p className="text-pretty text-[13.5px] leading-[1.55] text-ink-2">
+                    {project.description}
+                  </p>
                 </div>
-                <p className="text-pretty text-[13.5px] leading-[1.55] text-ink-2">
-                  {project.description}
-                </p>
-              </div>
 
-              {/* Right: screenshot area */}
-              {project.screenshotStack ? (() => {
-                const stack = project.screenshotStack;
-                return (
+                {/* Right: screenshot area */}
+                {project.screenshotStack ? (() => {
+                  const stack = project.screenshotStack;
+                  return (
+                    <div className="project-stack">
+                      <img
+                        src={stack.back}
+                        alt={`${project.title} second screen`}
+                        className="project-stack-card project-stack-back cursor-zoom-in"
+                        loading="lazy"
+                        draggable={false}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openLightbox(stack.back);
+                        }}
+                      />
+                      <img
+                        src={stack.front}
+                        alt={`${project.title} main screen`}
+                        className="project-stack-card project-stack-front cursor-zoom-in"
+                        loading={eager ? "eager" : "lazy"}
+                        draggable={false}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openLightbox(stack.front);
+                        }}
+                      />
+                    </div>
+                  );
+                })() : project.screenshot ? (() => {
+                  const screenshot = project.screenshot;
+                  return (
+                    <div className="project-row-screenshot">
+                      <img
+                        src={screenshot}
+                        alt={`${project.title} screenshot`}
+                        className="project-row-screenshot-img cursor-zoom-in"
+                        loading={eager ? "eager" : "lazy"}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openLightbox(screenshot);
+                        }}
+                      />
+                    </div>
+                  );
+                })() : (
                   <div className="project-stack">
-                    <img
-                      src={stack.back}
-                      alt={`${project.title} second screen`}
-                      className="project-stack-card project-stack-back cursor-zoom-in"
-                      loading="lazy"
-                      draggable={false}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        openLightbox(stack.back);
-                      }}
-                    />
-                    <img
-                      src={stack.front}
-                      alt={`${project.title} main screen`}
-                      className="project-stack-card project-stack-front cursor-zoom-in"
-                      loading={eager ? "eager" : "lazy"}
-                      draggable={false}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        openLightbox(stack.front);
-                      }}
-                    />
+                    <div className="project-stack-card project-stack-back project-stack-placeholder-card" />
+                    <div className="project-stack-card project-stack-front project-stack-placeholder-card">
+                      <span>{project.title.charAt(0)}</span>
+                    </div>
                   </div>
-                );
-              })() : project.screenshot ? (() => {
-                const screenshot = project.screenshot;
-                return (
-                  <div className="project-row-screenshot">
-                    <img
-                      src={screenshot}
-                      alt={`${project.title} screenshot`}
-                      className="project-row-screenshot-img cursor-zoom-in"
-                      loading={eager ? "eager" : "lazy"}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        openLightbox(screenshot);
-                      }}
-                    />
-                  </div>
-                );
-              })() : (
-                <div className="project-stack">
-                  <div className="project-stack-card project-stack-back project-stack-placeholder-card" />
-                  <div className="project-stack-card project-stack-front project-stack-placeholder-card">
-                    <span>{project.title.charAt(0)}</span>
-                  </div>
-                </div>
-              )}
-            </a>
-            );
-          })}
+                )}
+              </a>
+              );
+            })}
+          </div>
         </div>
+        {/* Narrow screens: the note follows the project list */}
+        <DidYouKnow avatarUrl={avatarUrl} placement="inline" />
       </section>
 
       {/* Press — logo marquee */}
