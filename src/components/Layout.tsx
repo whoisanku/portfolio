@@ -13,6 +13,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import blueskyLogo from "../assets/bsky.svg";
 import { preloadAuthRuntime, useAuth } from "../auth/AuthContext";
 import { OWNER_HANDLE } from "../lib/config";
+import { GLIDE_EASE, prefersReducedMotion } from "../lib/glide";
 import { readString, writeString } from "../lib/storage";
 import { prefetchOnIntent, whenIdle } from "../routes";
 import AnimatedSign from "./AnimatedSign";
@@ -66,27 +67,43 @@ function buildWavyPath(width: number): string {
   return d;
 }
 
+const UNDERLINE_GLIDE_MS = 520;
+
+/** The underline's spot under the active item, in the nav's coordinates. */
+interface Underline {
+  index: number;
+  left: number;
+  width: number;
+  path: string;
+}
+
 /**
  * Editorial topbar: mono handle on the left; on the right a three-word nav
  * where the active word turns accent, with a snake-style wavy underline that
- * glides between items (CSS transition) and continuously slithers (dashoffset flow).
+ * glides between items. The glide animates `transform` only (see
+ * lib/glide.ts), so it holds a steady frame rate on slow phones.
  */
 const TopNav = () => {
   const { pathname } = useLocation();
 
+  // The item just tapped shows as active at once. The route itself renders
+  // as a transition, so on a slow phone its commit (and the new pathname)
+  // can trail the tap by a while; the underline shouldn't wait for it.
+  const [tapped, setTapped] = useState<{ index: number; from: string } | null>(null);
+  if (tapped && tapped.from !== pathname) setTapped(null); // the route caught up
+
   const isActive = (to: string) =>
     to === "/" ? pathname === "/" : pathname.startsWith(to) || (to === "/posts" && pathname === "/post");
 
-  const activeIndex = navItems.findIndex((item) => isActive(item.to));
+  const activeIndex = tapped && tapped.from === pathname
+    ? tapped.index
+    : navItems.findIndex((item) => isActive(item.to));
 
   const linkRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const navRef = useRef<HTMLElement>(null);
+  const lineRef = useRef<HTMLSpanElement>(null);
 
-  const [underline, setUnderline] = useState<{
-    left: number;
-    width: number;
-    path: string;
-  } | null>(null);
+  const [underline, setUnderline] = useState<Underline | null>(null);
 
   // One-shot "draw on" for first mount
   const [ready, setReady] = useState(false);
@@ -106,15 +123,50 @@ const TopNav = () => {
     const width = elRect.width - shrinkAmount;
 
     setUnderline((prev) => {
-      if (prev && Math.abs(prev.left - left) < 0.5 && Math.abs(prev.width - width) < 0.5) {
+      if (
+        prev &&
+        prev.index === activeIndex &&
+        Math.abs(prev.left - left) < 0.5 &&
+        Math.abs(prev.width - width) < 0.5
+      ) {
         return prev;
       }
       // Rebuild path only when width actually changes (avoid thrash)
       const path =
         prev && Math.abs(prev.width - width) < 1 ? prev.path : buildWavyPath(width);
-      return { left, width, path };
+      return { index: activeIndex, left, width, path };
     });
   }, [activeIndex]);
+
+  // Moving to another item: FLIP. The line jumps to its new spot, then an
+  // animation carries it there from where it was drawn a frame ago. (Same
+  // item re-measured — font swap, resize — just snaps.)
+  const drawnRef = useRef<Underline | null>(null);
+  const glideRef = useRef<Animation | null>(null);
+  useLayoutEffect(() => {
+    const el = lineRef.current;
+    const from = drawnRef.current;
+    drawnRef.current = underline;
+    if (!el || !underline || !from || from.index === underline.index || prefersReducedMotion()) {
+      return;
+    }
+    let { left, width } = from;
+    const running = glideRef.current;
+    if (running?.playState === "running") {
+      // Tapped mid-glide: carry on from where the line is on screen now
+      const now = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+      left = now.e;
+      width = now.a * from.width;
+    }
+    running?.cancel();
+    glideRef.current = el.animate(
+      [
+        { transform: `translateX(${left}px) scaleX(${width / underline.width})` },
+        { transform: `translateX(${underline.left}px) scaleX(1)` },
+      ],
+      { duration: UNDERLINE_GLIDE_MS, easing: GLIDE_EASE },
+    );
+  }, [underline]);
 
   useLayoutEffect(() => {
     measure();
@@ -139,9 +191,9 @@ const TopNav = () => {
   const SVG_H = 8;
 
   return (
-    <nav ref={navRef} className="relative flex items-center gap-6" aria-label="Primary">
+    <nav ref={navRef} className="relative flex items-center gap-4 min-[385px]:gap-5 sm:gap-6" aria-label="Primary">
       {navItems.map((item, i) => {
-        const active = isActive(item.to);
+        const active = i === activeIndex;
         return (
           <NavLink
             key={item.to}
@@ -150,6 +202,12 @@ const TopNav = () => {
             className="pressable group relative text-[15px] tracking-[0.03em]"
             style={{ paddingBottom: 8 }}
             {...prefetchOnIntent(item.to)}
+            onClick={(e) => {
+              // Plain clicks only; modified ones open a new tab instead
+              if (e.button === 0 && !e.metaKey && !e.altKey && !e.ctrlKey && !e.shiftKey) {
+                setTapped({ index: i, from: pathname });
+              }
+            }}
           >
             <span
               className={`font-mono transition-colors duration-200 ${active ? "text-accent" : "text-ink-3 group-hover:text-ink"
@@ -161,39 +219,44 @@ const TopNav = () => {
         );
       })}
 
-      {/* Persistent snake SVG — position glides via CSS transition, stroke flows continuously */}
+      {/* Persistent snake. Placed by transform (never left/width), so the
+          glide — translate plus a scaleX for the words' different widths —
+          runs on the compositor. */}
       {underline && (
-        <svg
+        <span
+          ref={lineRef}
           aria-hidden="true"
           style={{
             position: "absolute",
             bottom: 0,
-            left: underline.left,
+            left: 0,
             width: underline.width,
             height: SVG_H,
-            overflow: "visible",
             pointerEvents: "none",
+            transform: `translateX(${underline.left}px)`,
+            transformOrigin: "0 50%",
             opacity: ready ? 1 : 0,
-            // ← glides the snake from tab to tab; easing width too so it grows/
-            // shrinks smoothly between words of different lengths (no snap)
-            transition:
-              "left 0.52s var(--ease-out), width 0.52s var(--ease-out), opacity 0.2s ease",
+            transition: "opacity 0.2s ease",
           }}
-          viewBox={`0 ${-SVG_H / 2} ${underline.width} ${SVG_H}`}
-          preserveAspectRatio="none"
         >
-          <path
-            d={underline.path}
-            fill="none"
-            stroke="var(--color-accent, #2a5fd0)"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+          <svg
+            width="100%"
+            height="100%"
+            style={{ display: "block", overflow: "visible" }}
+            viewBox={`0 ${-SVG_H / 2} ${underline.width} ${SVG_H}`}
+            preserveAspectRatio="none"
+          >
+            <path
+              d={underline.path}
+              fill="none"
+              stroke="var(--color-accent, #2a5fd0)"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
       )}
-
-
     </nav>
   );
 };
@@ -460,7 +523,11 @@ const Layout = () => {
         </Suspense>
       )}
 
-      <header className="mb-16 flex items-center justify-between gap-4 sm:mb-20">
+      {/* Gaps tighten on phones so the row fits from 360px up. Otherwise it
+          overflowed on every page but home (whose placeholder can shrink and
+          the avatar can't), and the whole nav jumped sideways on the way in
+          or out of home. */}
+      <header className="mb-16 flex items-center justify-between gap-3 sm:mb-20 sm:gap-4">
         {pathname !== "/" ? (
           <Link to="/" className="group flex items-center gap-3" aria-label="Home">
             <OwnerAvatar className="h-9 w-9" />
@@ -468,9 +535,9 @@ const Layout = () => {
         ) : (
           <div className="h-9 w-9" />
         )}
-        <div className="flex items-center gap-10">
+        <div className="flex items-center gap-3 min-[385px]:gap-6 sm:gap-10">
           <TopNav />
-          <div className="flex items-center gap-1">
+          <div className="flex items-center min-[385px]:gap-1">
             <ThemeToggle />
             <div className="relative">
               <a
@@ -483,11 +550,13 @@ const Layout = () => {
                 <Download size={15} />
               </a>
               <AnimatePresence>
+                {/* A whole `transform` (not y/scale) lets Motion hand the
+                    animation to the compositor */}
                 {showResumeTip && (
                   <m.div
-                    initial={prefersReduced ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.96 }}
-                    animate={prefersReduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
-                    exit={prefersReduced ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.96 }}
+                    initial={prefersReduced ? { opacity: 0 } : { opacity: 0, transform: "translateY(-6px) scale(0.96)" }}
+                    animate={prefersReduced ? { opacity: 1 } : { opacity: 1, transform: "translateY(0px) scale(1)" }}
+                    exit={prefersReduced ? { opacity: 0 } : { opacity: 0, transform: "translateY(-4px) scale(0.96)" }}
                     transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                     className="absolute right-0 top-full mt-3 cursor-pointer"
                     style={{ width: 208, zIndex: 50, transformOrigin: "top right" }}

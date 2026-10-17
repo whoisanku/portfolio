@@ -17,6 +17,9 @@ const ChatPanel = lazy(loadPanel);
 const preloadPanel = () => void loadPanel();
 
 const EASE = [0.16, 1, 0.3, 1] as const;
+/** Whole `transform` strings (not y/scale/rotate) let Motion run these on the compositor. */
+const PANEL_SHOWN = "translateY(0px) scale(1)";
+const PANEL_HIDDEN = "translateY(12px) scale(0.97)";
 
 /** Panel header, shared by the loading shell and the loaded panel. */
 export const ChatHeader = ({ onClose, actions }: { onClose: () => void; actions?: ReactNode }) => {
@@ -64,11 +67,11 @@ const ChatWidget = () => {
     <div className="pointer-events-none fixed right-5 bottom-5 z-[60] flex flex-col items-end gap-3 print:hidden">
       {mounted && (
         <m.div
-          initial={{ opacity: 0, y: 12, scale: 0.97 }}
+          initial={{ opacity: 0, transform: PANEL_HIDDEN }}
           animate={
             open
-              ? { opacity: 1, y: 0, scale: 1, visibility: "visible" }
-              : { opacity: 0, y: 12, scale: 0.97, transitionEnd: { visibility: "hidden" } }
+              ? { opacity: 1, transform: PANEL_SHOWN, visibility: "visible" }
+              : { opacity: 0, transform: PANEL_HIDDEN, transitionEnd: { visibility: "hidden" } }
           }
           transition={{ duration: 0.18, ease: EASE }}
           inert={!open}
@@ -105,9 +108,9 @@ const ChatWidget = () => {
         <AnimatePresence mode="wait" initial={false}>
           <m.span
             key={open ? "close" : "open"}
-            initial={{ opacity: 0, rotate: -45 }}
-            animate={{ opacity: 1, rotate: 0 }}
-            exit={{ opacity: 0, rotate: 45 }}
+            initial={{ opacity: 0, transform: "rotate(-45deg)" }}
+            animate={{ opacity: 1, transform: "rotate(0deg)" }}
+            exit={{ opacity: 0, transform: "rotate(45deg)" }}
             transition={{ duration: 0.15 }}
           >
             {open ? <X size={20} /> : <MessageCircle size={20} />}

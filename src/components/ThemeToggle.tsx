@@ -28,14 +28,16 @@ const ThemeToggle = () => {
     >
       {/* No mode="wait": the outgoing and incoming icons overlap (absolute) and
           crossfade in place, so a frequently-tapped control never waits for the
-          old icon to leave before the new one arrives. */}
+          old icon to leave before the new one arrives. A whole `transform`
+          (not rotate/scale) lets Motion run it on the compositor, so it stays
+          smooth while the page repaints in the new theme. */}
       <AnimatePresence initial={false}>
         <m.span
           key={theme}
           className="absolute inset-0 flex items-center justify-center"
-          initial={prefersReduced ? { opacity: 0 } : { opacity: 0, rotate: -50, scale: 0.7 }}
-          animate={prefersReduced ? { opacity: 1 } : { opacity: 1, rotate: 0, scale: 1 }}
-          exit={prefersReduced ? { opacity: 0 } : { opacity: 0, rotate: 50, scale: 0.7 }}
+          initial={prefersReduced ? { opacity: 0 } : { opacity: 0, transform: "rotate(-50deg) scale(0.7)" }}
+          animate={prefersReduced ? { opacity: 1 } : { opacity: 1, transform: "rotate(0deg) scale(1)" }}
+          exit={prefersReduced ? { opacity: 0 } : { opacity: 0, transform: "rotate(50deg) scale(0.7)" }}
           transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
         >
           {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}

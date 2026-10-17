@@ -1,69 +1,37 @@
-import { useInView, useReducedMotion } from "motion/react";
-import * as m from "motion/react-m";
 import { useRef } from "react";
+import { usePlayWhenVisible } from "../lib/usePlayWhenVisible";
 
 /**
- * Hand-drawn "anku" signature. Once it scrolls into view it loops: the stroke
- * draws on, the letters ink in, then it holds before un-inking and erasing
- * itself back to nothing. Inherits its color — wrap it in text-accent.
+ * Hand-drawn "anku" signature. On screen it loops: the stroke draws on, the
+ * letters ink in, then it holds before un-inking and erasing itself back to
+ * nothing. Inherits its color — wrap it in text-accent.
  *
- * The fill needs its own timing rather than riding along with the stroke:
- * fillOpacity paints the whole glyph regardless of how much of the path is
- * drawn, so ramping them together would ghost the finished signature in behind
- * a half-drawn line. It stays at 0 until the stroke has landed, and clears
- * again just before the erase starts.
+ * The loop is a CSS animation (.signature in index.css) rather than one
+ * driven from script, and it pauses whenever the footer is off screen, so it
+ * never costs a phone anything while you read the rest of the page.
  *
  * Under prefers-reduced-motion it renders finished and never animates.
  */
-const LOOP_SECONDS = 5.5;
-
 const AnimatedSign = () => {
   const ref = useRef<SVGSVGElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
-  const prefersReduced = useReducedMotion();
-  const running = !prefersReduced && inView;
+  usePlayWhenVisible(ref, "-40px");
 
   return (
     <svg
       ref={ref}
-      className="h-auto w-full"
+      className="signature h-auto w-full"
       viewBox="8.0 10 90 40"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-label="anku"
       role="img"
     >
-      <m.path
+      <path
+        pathLength={1}
         d="M16.38 34.84c-0.28 0.16-0.42 0.34-0.98 0.66-0.84 0.84-1.82 1.5-2.8 2-0.7 0.34-1.12 0.5-1.82 0.5-0.42 0-0.84-0.16-1.12-0.5-0.7-0.66-0.84-1.66-0.84-2.5 0-0.84 0.28-1.84 0.56-2.5 0.28-0.5 0.56-0.84 0.84-1 0.7-0.84 1.4-1.34 2.24-1.66 0.7-0.16 1.12-0.5 1.82-0.5 0.28 0 0.56 0 0.84 0.16 0.42 0 0.7 0.16 0.98 0.16 0.28-0.16 0.42-0.5 0.7-0.5 0.42-0.16 0.84 0 1.12 0.34 0.42 0.5 0.56 1 0.42 1.66-0.14 0.5-0.14 1-0.14 1.34 0.14 0.66 0.42 1.34 0.7 1.66 0.42 0.5 0.98 0.5 1.4 0.5 1.4-0.16 2.8-0.84 3.92-1.66 0.14-0.16 0.28-0.16 0.28-0.16 0.42-0.5 1.12-1 1.68-1.5 0.42-0.5 0.56-0.66 0.7-0.84 0.42-0.34 0.7-0.66 1.26-0.84 0.42-0.34 0.84-0.34 1.26-0.34 0.7 0 1.26 0.5 1.68 1.34 0.14 0.5 0.42 0.84 0.56 1.5 0.56-0.5 0.84-1 1.4-1.34 0.56-0.66 1.4-1.16 2.1-1.16 0.7 0.16 1.26 0.5 1.68 1.34 0.7 1 1.12 2 1.4 3 0.28 1 0.98 1.66 1.82 1.66 1.12-0.16 2.1-0.84 3.08-1.34 0.84-0.5 1.4-0.84 2.1-1.34 0.14-0.16 0.28-0.16 0.56-0.34 0-0.84 0-1 0.14-1.34 0-1.16 0-2.5 0-3 0-1 0-2 0-2.84 0.14-1.5 0.14-3 0.14-4.5 0-0.84 0.14-1.66 0.28-2.34 0.14-0.5 0.42-0.84 0.84-0.84 0.28 0 0.7 0.16 0.7 0.66 0.42 1 0.56 2.34 0.7 3.5 0.14 1.34 0 2.66-0.14 4 0 0.34 0 0.84-0.14 1.34 0.56-0.5 1.12-1 1.54-1.34 0.84-0.5 1.54-1 2.38-1 0.7-0.16 1.54 0.5 1.82 1.34 0.42 1.5 0.42 3-0.42 4.34-0.42 0.84-0.84 1.34-1.54 2-0.42 0.34-0.7 0.66-1.12 1 0.14 0.16 0.28 0.16 0.42 0.34 0.56 0.16 1.12 0.5 1.54 0.5 0.84 0.16 1.4 0.16 2.24 0 1.54-0.16 2.52-0.5 4.06-1.34 0.28-0.16 0.56-0.34 0.84-0.5 0-0.5 0-0.66 0-1 0-1 0.14-2 0.14-2 0.14-1 0.7-2 1.4-2 0.7 0 0.84 0.66 0.84 1.34 0 1-0.14 1.84-0.14 2.66-0.14 0.84 0 1.66 0.28 2.34 0.28 0.66 0.7 1 1.4 1 0.84 0 1.4-0.16 2.1-0.16 0.7-0.16 1.4-0.5 2.24-1.16 0.42-0.34 0.84-0.84 1.12-1.16-0.14-0.5-0.14-1-0.14-1.34 0-0.5 0-1 0.14-1.34 0-0.5 0.14-1 0.56-1.34 0.14-0.16 0.42-0.16 0.84-0.16 0.14 0 0.42 0.16 0.56 0.84 0.14 0.66 0.14 1.16 0.14 2 0 1 0.28 3 0.84 4 0.28 0.5 0.56 0.66 0.84 0.84 0.42 0.16 0.84 0.16 1.26 0.16 1.12-0.16 2.1-0.5 3.64-1.34 0.14-0.16 0.56-0.16 0.7-0.5 0.84-0.5 1.4-0.84 2.24-1.34 0.7-0.5 1.12-0.34 1.4 0.16 0.28 0.5-0.14 1.16-0.84 1.66-0.7 0.5-1.12 0.84-1.96 1.34-0.42 0.16-0.84 0.5-1.4 0.84-0.42 0.34-0.98 0.5-1.4 0.66-0.84 0.5-1.68 0.5-2.38 0.5-1.26 0-2.38-0.34-3.36-1.34-0.42-0.5-0.7-1-0.98-1.5-0.7 0.5-1.4 1-2.24 1.34-1.4 0.66-2.66 1.16-4.2 1-0.7-0.16-1.4-0.5-1.96-1-0.42-0.5-0.7-1-0.84-1.66 0 0-0.14 0-0.14 0-0.14 0.16-0.42 0.34-0.7 0.5-1.96 1-3.92 2-5.74 2-1.12 0-2.1-0.16-3.08-0.5-0.7-0.34-1.4-0.5-1.96-0.84-0.42-0.16-0.56-0.5-0.98-0.84-0.14 0.16-0.14 0.84-0.14 1.16 0 0.5 0 1-0.14 1.5 0 0.5 0 0.84-0.28 1-0.14 0.16-0.42 0.34-0.7 0.34-0.28 0-0.42 0-0.7-0.16-0.28-0.16-0.42-0.5-0.42-0.84-0.14-0.66-0.14-1.16 0-1.84 0-0.66 0-1.16 0-1.66-0.14 0-0.14 0-0.14 0-0.7 0.5-1.12 0.84-1.96 1.34-0.42 0.16-0.84 0.5-1.4 0.84-0.7 0.34-1.12 0.66-1.82 0.84-0.7 0.16-1.4 0.16-2.1 0-0.98-0.5-1.54-1-2.1-2.34-0.14-0.5-0.42-1-0.56-1.66-0.14-0.5-0.42-1-0.84-1.34-0.14-0.16-0.42-0.34-0.7-0.34-0.28 0-0.56 0.16-0.7 0.34-0.42 0.5-0.7 1-0.98 1.34-0.28 0.5-0.42 0.84-0.42 1-0.14 0.66-0.14 1.34-0.14 2-0.14 0.5-0.56 1-1.12 1-0.42 0-0.84-0.16-0.84-0.84 0-0.34 0-0.5 0-0.84-0.14-1.5-0.42-2.84-0.42-2.84-0.14-0.5-0.42-1-0.7-1.5-0.14-0.34-0.7-0.34-0.84-0.16-0.42 0.34-0.84 0.84-1.4 1.34-0.42 0.5-0.84 0.84-1.26 1-0.14 0.34-0.56 0.5-0.56 0.5-0.98 0.84-1.96 1.34-1.96 1.34-0.98 0.5-1.96 1-2.94 1-1.12 0-1.68-0.34-2.52-1.16-0.42-0.34-0.7-0.66-0.84-0.84zm-2.94 0.16c0.56-0.5 1.12-1 1.54-1.5 0.28-0.34 0.42-0.84 0.14-1.16-0.14-0.66-0.7-0.84-1.12-0.84-0.84 0.16-1.54 0.5-2.24 1.16-0.7 0.84-1.12 1.5-1.12 2.66 0 0.5 0.28 0.84 0.7 0.84 0.84 0 1.54-0.5 2.1-1zm37.38-3.84c0.56-0.66 1.12-1.5 1.12-2.5 0-0.66-0.28-1-0.7-1-0.42 0-0.98 0.5-1.4 0.84-0.28 0.16-0.42 0.5-0.7 1-0.42 0.66-0.84 1.5-0.98 2.34 0 0.16-0.14 0.16-0.14 0.5 0.14 0.16 0.14 0.34 0.14 0.5 0.14 0 0.42 0 0.56-0.16 0.7-0.34 1.68-1 1.96-1.34z"
         stroke="currentColor"
         strokeWidth="0.5"
         fill="currentColor"
-        initial={prefersReduced ? { pathLength: 1, fillOpacity: 1 } : { pathLength: 0, fillOpacity: 0 }}
-        animate={
-          running
-            ? { pathLength: [0, 1, 1, 0], fillOpacity: [0, 0, 1, 1, 0] }
-            : { pathLength: prefersReduced ? 1 : 0, fillOpacity: prefersReduced ? 1 : 0 }
-        }
-        transition={
-          running
-            ? {
-                pathLength: {
-                  duration: LOOP_SECONDS,
-                  times: [0, 0.36, 0.68, 1],
-                  ease: "easeInOut",
-                  repeat: Infinity,
-                  repeatDelay: 0.5,
-                },
-                fillOpacity: {
-                  duration: LOOP_SECONDS,
-                  times: [0, 0.34, 0.46, 0.62, 0.7],
-                  ease: "easeInOut",
-                  repeat: Infinity,
-                  repeatDelay: 0.5,
-                },
-              }
-            : { duration: 0 }
-        }
       />
     </svg>
   );

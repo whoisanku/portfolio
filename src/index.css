@@ -663,13 +663,25 @@ body {
 .press-marquee-track {
   display: flex;
   width: max-content;
-  /* Negative delay starts the belt mid-drift, so it never looks "just begun" */
-  animation: press-marquee-scroll 70s linear -18s infinite;
+  /* Negative delay starts the belt mid-drift, so it never looks "just begun".
+     Paused while off screen (HomePage marks it data-playing in view). */
+  animation: press-marquee-scroll 70s linear -18s infinite paused;
 }
 
-.press-marquee:hover .press-marquee-track,
-.press-marquee:focus-within .press-marquee-track {
+.press-marquee[data-playing] .press-marquee-track {
+  animation-play-state: running;
+}
+
+/* Hold still for a hovering pointer or keyboard focus. Not for a tap: on
+   touch, :hover and :focus-within stick after the tap and froze the belt. */
+.press-marquee:has(:focus-visible) .press-marquee-track {
   animation-play-state: paused;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .press-marquee:hover .press-marquee-track {
+    animation-play-state: paused;
+  }
 }
 
 /* Track holds 4 identical sets → −25% lands exactly one set over: seamless */
@@ -1189,6 +1201,64 @@ body {
   }
 }
 
+/* ─── Footer signature (AnimatedSign) ───
+   Draw the stroke on, ink the letters in, hold, un-ink, erase: 5.5s of
+   motion then 0.5s at rest, eased per step. The fill keeps its own timing —
+   fill paints the whole glyph however much stroke is drawn, so it waits for
+   the stroke to land and clears again before the erase. Runs only while on
+   screen (data-playing). */
+.signature path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  fill-opacity: 0;
+  animation:
+    signature-stroke 6s ease-in-out infinite paused,
+    signature-ink 6s ease-in-out infinite paused;
+}
+
+.signature[data-playing] path {
+  animation-play-state: running;
+}
+
+@keyframes signature-stroke {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  33%,
+  62.33% {
+    stroke-dashoffset: 0;
+  }
+  91.67%,
+  100% {
+    stroke-dashoffset: 1;
+  }
+}
+
+@keyframes signature-ink {
+  0%,
+  31.17% {
+    fill-opacity: 0;
+  }
+  42.17%,
+  56.83% {
+    fill-opacity: 1;
+  }
+  64.17%,
+  100% {
+    fill-opacity: 0;
+  }
+}
+
+/* Theme switches swap every colour in one frame (src/lib/theme.ts sets
+   this for the switch). Otherwise each element with a colour transition
+   animates its own swap: a page-wide repaint on every frame for a fifth of
+   a second, which stutters on slow phones. */
+[data-theme-switching] *,
+[data-theme-switching] *::before,
+[data-theme-switching] *::after {
+  transition: none !important;
+}
+
 /* Route changes: the new page settles in with a short fade instead of
    swapping in on a single frame. Opacity only — a transform here would
    re-anchor the page's fixed-position controls while it runs. */
@@ -1199,8 +1269,8 @@ body {
 /* ─── Reduced motion ───
    Keep opacity/color cues that aid comprehension; drop travel and scale.
    The press marquee is handled in its own block above; Framer Motion surfaces
-   (signature, toasts, theme toggle, avatar, lightbox) read the same signal via
-   useReducedMotion. */
+   (toasts, theme toggle, lightbox) read the same signal via useReducedMotion,
+   and the avatar and nav underline glides via lib/glide.ts. */
 @media (prefers-reduced-motion: reduce) {
   /* Entrances fade in without scaling or sliding */
   .admin-dropdown,
@@ -1217,6 +1287,13 @@ body {
   /* Skeletons hold still */
   .skeleton {
     animation: none;
+  }
+
+  /* The signature is simply there, finished */
+  .signature path {
+    animation: none;
+    stroke-dashoffset: 0;
+    fill-opacity: 1;
   }
 
   /* Indeterminate loader pulses in place instead of shuttling across */
