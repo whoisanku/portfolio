@@ -179,6 +179,9 @@ const LightboxView = ({ gallery, onClose }: { gallery: Gallery; onClose: () => v
 
   const image = images[index];
 
+  // Near-opaque black, no backdrop blur: at 95% the blur hardly showed, and
+  // re-blurring the whole page on every frame of the fade is about the
+  // heaviest thing a phone's GPU can be asked to do.
   return (
     <m.div
       ref={dialogRef}
@@ -186,7 +189,7 @@ const LightboxView = ({ gallery, onClose }: { gallery: Gallery; onClose: () => v
       aria-modal="true"
       aria-label={count > 1 ? `Image ${index + 1} of ${count}` : "Image"}
       tabIndex={-1}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 outline-none backdrop-blur-md"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 outline-none"
       onClick={onClose}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
@@ -195,11 +198,12 @@ const LightboxView = ({ gallery, onClose }: { gallery: Gallery; onClose: () => v
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2, ease: EASE }}
     >
+      {/* A whole `transform` (not scale) lets Motion run it on the compositor */}
       <m.div
         onClick={(e) => e.stopPropagation()}
-        initial={prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
-        animate={prefersReduced ? { opacity: 1 } : { opacity: 1, scale: 1 }}
-        exit={prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
+        initial={prefersReduced ? { opacity: 0 } : { opacity: 0, transform: "scale(0.96)" }}
+        animate={prefersReduced ? { opacity: 1 } : { opacity: 1, transform: "scale(1)" }}
+        exit={prefersReduced ? { opacity: 0 } : { opacity: 0, transform: "scale(0.98)" }}
         transition={{ duration: 0.22, ease: EASE }}
       >
         <Frame key={image.src} image={image} />

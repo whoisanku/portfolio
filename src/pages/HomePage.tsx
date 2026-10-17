@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from "react";
+import { useRef, useState, type MouseEvent } from "react";
 import { ArrowUpRight } from "lucide-react";
 import DidYouKnow from "../components/DidYouKnow";
 import Lightbox, { type Gallery } from "../components/Lightbox";
@@ -6,6 +6,7 @@ import OwnerAvatar from "../components/OwnerAvatar";
 import ScienceAccounts from "../components/ScienceAccounts";
 import { pressMentions } from "../data/press";
 import { projects, type Project, type Shot } from "../data/projects";
+import { usePlayWhenVisible } from "../lib/usePlayWhenVisible";
 
 /**
  * A project's screenshots: two overlapping cards, or a placeholder. The pair
@@ -101,6 +102,8 @@ const ProjectShots = ({
 
 const HomePage = () => {
   const [gallery, setGallery] = useState<Gallery | null>(null);
+  const marqueeRef = useRef<HTMLDivElement>(null);
+  usePlayWhenVisible(marqueeRef);
 
   const openShots = (shots: Shot[], index: number) =>
     setGallery({
@@ -166,7 +169,7 @@ const HomePage = () => {
         <div className="mb-4 text-center font-mono text-[12px] font-medium uppercase tracking-[0.22em] text-ink-3">
           Featured in
         </div>
-        <div className="press-marquee">
+        <div ref={marqueeRef} className="press-marquee">
           <div className="press-marquee-track">
             {[0, 1, 2, 3].map((set) => (
               <div

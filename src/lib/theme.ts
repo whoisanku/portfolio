@@ -39,15 +39,20 @@ export function resolvedTheme(): Theme {
 }
 
 function applyTheme(theme: Theme) {
-  document.documentElement.setAttribute("data-theme", theme);
+  const root = document.documentElement;
+  // Swap every colour at once, with colour transitions off for the switch
+  // ([data-theme-switching] in index.css): styles are flushed while they're
+  // off, so turning them back on next frame animates nothing.
+  root.setAttribute("data-theme-switching", "");
+  root.setAttribute("data-theme", theme);
+  void document.body.offsetHeight;
+  requestAnimationFrame(() => root.removeAttribute("data-theme-switching"));
   // Keep the browser chrome (mobile URL bar) on the paper color
   const meta = document.querySelector<HTMLMetaElement>(
     'meta[name="theme-color"]',
   );
   if (meta) {
-    const bg = getComputedStyle(document.documentElement)
-      .getPropertyValue("--bg")
-      .trim();
+    const bg = getComputedStyle(root).getPropertyValue("--bg").trim();
     meta.content = bg || THEME_COLOR[theme];
   }
 }
