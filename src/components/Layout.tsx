@@ -13,7 +13,7 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import blueskyLogo from "../assets/bsky.svg";
 import { preloadAuthRuntime, useAuth } from "../auth/AuthContext";
 import { OWNER_HANDLE } from "../lib/config";
-import { GLIDE_EASE, prefersReducedMotion } from "../lib/glide";
+import { glide, prefersReducedMotion, type Glide } from "../lib/glide";
 import { readString, writeString } from "../lib/storage";
 import { prefetchOnIntent, whenIdle } from "../routes";
 import AnimatedSign from "./AnimatedSign";
@@ -67,8 +67,6 @@ function buildWavyPath(width: number): string {
   return d;
 }
 
-const UNDERLINE_GLIDE_MS = 520;
-
 /** The underline's spot under the active item, in the nav's coordinates. */
 interface Underline {
   index: number;
@@ -80,8 +78,8 @@ interface Underline {
 /**
  * Editorial topbar: mono handle on the left; on the right a three-word nav
  * where the active word turns accent, with a snake-style wavy underline that
- * glides between items. The glide animates `transform` only (see
- * lib/glide.ts), so it holds a steady frame rate on slow phones.
+ * glides between items on a spring. The glide animates `transform` only
+ * (see lib/glide.ts), so it holds a steady frame rate on slow phones.
  */
 const TopNav = () => {
   const { pathname } = useLocation();
@@ -138,11 +136,11 @@ const TopNav = () => {
     });
   }, [activeIndex]);
 
-  // Moving to another item: FLIP. The line jumps to its new spot, then an
-  // animation carries it there from where it was drawn a frame ago. (Same
-  // item re-measured — font swap, resize — just snaps.)
+  // Moving to another item: FLIP. The line jumps to its new spot, then a
+  // spring carries it there from where it was drawn a frame ago. (Same item
+  // re-measured — font swap, resize — just snaps.)
   const drawnRef = useRef<Underline | null>(null);
-  const glideRef = useRef<Animation | null>(null);
+  const glideRef = useRef<Glide<"left" | "width"> | null>(null);
   useLayoutEffect(() => {
     const el = lineRef.current;
     const from = drawnRef.current;
@@ -150,21 +148,17 @@ const TopNav = () => {
     if (!el || !underline || !from || from.index === underline.index || prefersReducedMotion()) {
       return;
     }
-    let { left, width } = from;
-    const running = glideRef.current;
-    if (running?.playState === "running") {
-      // Tapped mid-glide: carry on from where the line is on screen now
-      const now = new DOMMatrixReadOnly(getComputedStyle(el).transform);
-      left = now.e;
-      width = now.a * from.width;
-    }
-    running?.cancel();
-    glideRef.current = el.animate(
-      [
-        { transform: `translateX(${left}px) scaleX(${width / underline.width})` },
-        { transform: `translateX(${underline.left}px) scaleX(1)` },
-      ],
-      { duration: UNDERLINE_GLIDE_MS, easing: GLIDE_EASE },
+    // Tapped mid-glide: carry on from where the line is, at the speed it's going
+    const now = glideRef.current?.now();
+    glideRef.current?.cancel();
+    const { left, width } = underline;
+    glideRef.current = glide(
+      el,
+      {
+        left: { from: now?.left.value ?? from.left, to: left, velocity: now?.left.velocity },
+        width: { from: now?.width.value ?? from.width, to: width, velocity: now?.width.velocity },
+      },
+      (at) => `translateX(${at.left}px) scaleX(${at.width / width})`,
     );
   }, [underline]);
 

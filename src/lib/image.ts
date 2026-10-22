@@ -47,6 +47,22 @@ export function optimizedSrc(url: string, width: (typeof WIDTHS)[number]): strin
 }
 
 /**
+ * Have the optimizer make every variant of a just-published image now, so
+ * its first readers don't each wait on a cold transform (seconds, for the
+ * big widths). AVIF only: what nearly every browser asks for. If the
+ * optimizer's cache is per region, this warms the one serving the publisher.
+ */
+export function warmOptimizedImage(url: string) {
+  if (!optimizable(url)) return;
+  for (const width of WIDTHS) {
+    void fetch(optimizedUrl(url, width), {
+      headers: { Accept: "image/avif,image/webp,*/*" },
+      priority: "low",
+    }).catch(() => {});
+  }
+}
+
+/**
  * `src`, `srcSet` and `sizes` to spread onto an <img>. `sizes` is the
  * rendered width, exactly as the HTML attribute takes it.
  */

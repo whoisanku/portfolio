@@ -17,7 +17,14 @@ import {
   type QueryKey,
 } from "@tanstack/react-query";
 import { avatarThumbnail } from "./atproto";
-import { fetchBlogEntries, fetchBlogEntry, toEntry, type BlogEntry, type BlogEntryRecord } from "./blog";
+import {
+  entriesFromRecords,
+  fetchBlogEntries,
+  fetchBlogEntry,
+  toEntry,
+  type BlogEntry,
+  type BlogEntryRecord,
+} from "./blog";
 import { OWNER_HANDLE, PUBLIC_API } from "./config";
 import { fetchAuthorPosts } from "./feed";
 import { fetchJson, isTransient } from "./http";
@@ -74,20 +81,33 @@ const BLOG_ENTRIES_KEY = ["blog", "entries"] as const;
 const BLOG_ENTRIES_STORAGE = `cache:blog-entries:${OWNER_HANDLE}`;
 persist(BLOG_ENTRIES_KEY, BLOG_ENTRIES_STORAGE);
 
+type RawRecord = { uri: string; value: BlogEntryRecord };
+
+const isRawRecord = (r: unknown): r is RawRecord =>
+  typeof (r as RawRecord | null)?.uri === "string" && typeof (r as RawRecord).value === "object";
+
+/** The public entries the /blog edge function embedded in the page, if any. */
+function bootEntries(): BlogEntry[] | undefined {
+  const entries = window.__BLOG_BOOT__?.entries;
+  return Array.isArray(entries) ? entriesFromRecords(entries.filter(isRawRecord)) : undefined;
+}
+
 export const blogEntriesQuery = () =>
   queryOptions({
     queryKey: BLOG_ENTRIES_KEY,
     queryFn: ({ signal }) => fetchBlogEntries(signal),
-    initialData: () => savedFor<BlogEntry[]>(BLOG_ENTRIES_STORAGE)?.data,
-    initialDataUpdatedAt: () => savedFor<BlogEntry[]>(BLOG_ENTRIES_STORAGE)?.at,
+    // A returning visitor's saved copy, else (first visit) what the edge
+    // embedded. The edge copy may be CDN-cached and holds public posts only,
+    // so it's always checked.
+    initialData: () => savedFor<BlogEntry[]>(BLOG_ENTRIES_STORAGE)?.data ?? bootEntries(),
+    initialDataUpdatedAt: () => savedFor<BlogEntry[]>(BLOG_ENTRIES_STORAGE)?.at ?? 0,
   });
 
 /** The record the /blog/:rkey edge function embedded in the page, if it's this one. */
 function bootEntry(rkey: string): BlogEntry | undefined {
   const boot = window.__BLOG_BOOT__;
-  const record = boot?.record as { uri?: string; value?: BlogEntryRecord } | undefined;
-  if (boot?.rkey !== rkey || !record?.uri || !record.value) return undefined;
-  return toEntry(record.uri, record.value);
+  if (boot?.rkey !== rkey || !isRawRecord(boot.record)) return undefined;
+  return toEntry(boot.record.uri, boot.record.value);
 }
 
 export const blogEntryQuery = (rkey: string) =>

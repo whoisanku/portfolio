@@ -16,6 +16,13 @@
  * without the browser repeating the same three lookups. The app still
  * refreshes it in the background: this HTML may be a CDN-cached copy.
  *
+ * It serves /blog too (?view=list): the shell keeps its site-wide tags, and
+ * the public entries are embedded the same way, so the index paints without
+ * waiting on the handle → DID → PDS → listRecords chain.
+ *
+ * Either way the cover the page leads with is preloaded from the <head>, so
+ * it downloads alongside the app's code rather than after it.
+ *
  * Deliberately dependency-free: this runs on the edge runtime, and anything it
  * imported from src/ would have to stay edge-safe forever. The markdown and
  * visibility helpers below mirror src/lib/blog.ts, which is the source of truth.
@@ -33,6 +40,19 @@ const DEFAULT_IMAGE =
 
 /** Upstream reads are best-effort: a slow PDS must not stall the page. */
 const UPSTREAM_TIMEOUT_MS = 2500;
+
+/** listRecords page size; a shorter page is the last. Mirrors src/lib/blog.ts. */
+const PAGE_LIMIT = 100;
+const MAX_PAGES = 10;
+
+/**
+ * Mirrors src/lib/image.ts: the widths and source hosts vercel.json lets
+ * /_vercel/image serve, and the `sizes` of an image spanning the column.
+ */
+const IMAGE_WIDTHS = [256, 384, 640, 828, 1280, 1920];
+const IMAGE_HOSTS = new Set(["api.grove.storage", "cdn.bsky.app"]);
+const IMAGE_QUALITY = 75;
+const COLUMN_SIZES = "(max-width: 660px) calc(100vw - 56px), 604px";
 
 interface BlogEntryRecord {
   content?: string;
@@ -118,6 +138,42 @@ async function fetchEntry(
   return { identity, uri: record.uri, value: record.value };
 }
 
+interface RepoRecord {
+  uri: string;
+  value: BlogEntryRecord;
+}
+
+/** Every public entry, paged the way fetchBlogEntries() in src/lib/blog.ts does. */
+async function fetchPublicEntries(
+  signal: AbortSignal,
+): Promise<{ identity: Identity; records: RepoRecord[] }> {
+  const identity = await ownerIdentity(signal);
+  const records: RepoRecord[] = [];
+  let cursor: string | undefined;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const params = new URLSearchParams({
+      repo: identity.did,
+      collection: BLOG_COLLECTION,
+      limit: String(PAGE_LIMIT),
+    });
+    if (cursor) params.set("cursor", cursor);
+    const res = await getJson<{ cursor?: string; records?: RepoRecord[] }>(
+      `${identity.pds}/xrpc/com.atproto.repo.listRecords?${params}`,
+      signal,
+    );
+    const batch = res.records ?? [];
+    records.push(...batch);
+    cursor = res.cursor;
+    if (!cursor || batch.length < PAGE_LIMIT) break;
+  }
+  return { identity, records: records.filter((r) => isPublic(r.value)) };
+}
+
+/** Mirrors isPublic() in src/lib/blog.ts: listed in the index. */
+function isPublic(record: BlogEntryRecord): boolean {
+  return !record.isDraft && (record.visibility ?? "public") === "public";
+}
+
 /**
  * Mirrors isViewableByLink() in src/lib/blog.ts: public and unlisted posts
  * open from a shared link; drafts and private posts must not leak into
@@ -150,11 +206,40 @@ function excerpt(markdown: string, length = 180): string {
   return text.length > length ? `${text.slice(0, length).trimEnd()}…` : text;
 }
 
-/** Cover image, falling back to the first inline image like the blog index does. */
-function coverUrl(record: BlogEntryRecord): string {
+/** The post's own cover, else its first inline image, like the blog index shows. */
+function recordCover(record: BlogEntryRecord): string | undefined {
   if (record.ogp?.url) return record.ogp.url;
-  const inline = (record.content ?? "").match(/!\[.*?\]\((.*?)\)/);
-  return inline?.[1] ?? DEFAULT_IMAGE;
+  return (record.content ?? "").match(/!\[.*?\]\((.*?)\)/)?.[1];
+}
+
+/** Cover image for link previews, falling back to the site's. */
+function coverUrl(record: BlogEntryRecord): string {
+  return recordCover(record) ?? DEFAULT_IMAGE;
+}
+
+/**
+ * A <link> that starts the cover downloading with the HTML. Its srcset and
+ * sizes are exactly what the page's <img> asks for (responsiveImage() in
+ * src/lib/image.ts), so the browser reuses this download for it. No href:
+ * a browser that can't read imagesrcset then skips the preload instead of
+ * fetching a size the <img> might not pick.
+ */
+function coverPreload(url: string): string {
+  let hostname: string;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return "";
+    hostname = parsed.hostname;
+  } catch {
+    return "";
+  }
+  if (!IMAGE_HOSTS.has(hostname)) {
+    return `<link rel="preload" as="image" href="${escapeAttr(url)}" fetchpriority="high" />`;
+  }
+  const srcset = IMAGE_WIDTHS.map(
+    (w) => `/_vercel/image?url=${encodeURIComponent(url)}&w=${w}&q=${IMAGE_QUALITY} ${w}w`,
+  ).join(", ");
+  return `<link rel="preload" as="image" imagesrcset="${escapeAttr(srcset)}" imagesizes="${COLUMN_SIZES}" fetchpriority="high" />`;
 }
 
 function escapeAttr(value: string): string {
@@ -213,9 +298,17 @@ function scriptJson(value: unknown): string {
     .replaceAll("\u2029", "\\u2029");
 }
 
-/** Hand the fetched record to the app (read by src/lib/queries.ts). */
-function bootScript(boot: { identity: Identity; rkey: string; record: unknown }): string {
+/** Hand the fetched records to the app (read by src/lib/queries.ts). */
+function bootScript(
+  boot: { identity: Identity } & ({ rkey: string; record: RepoRecord } | { entries: RepoRecord[] }),
+): string {
   return `<script>window.__BLOG_BOOT__=${scriptJson(boot)};</script>`;
+}
+
+/** Append to the shell's <head>, leaving its own tags as they are. */
+function injectHead(html: string, extraHead: string): string {
+  // A replacer function, so `$&`-style patterns in post text stay literal.
+  return html.includes("</head>") ? html.replace("</head>", () => `  ${extraHead}\n</head>`) : html;
 }
 
 /**
@@ -228,35 +321,51 @@ export function injectMeta(html: string, meta: Meta, extraHead = ""): string {
     .replace(/<meta\s+name="description"[\s\S]*?>/i, "")
     .replace(/<meta\s+property="og:[\s\S]*?>/gi, "")
     .replace(/<meta\s+name="twitter:[\s\S]*?>/gi, "");
-
-  // A replacer function, so `$&`-style patterns in post text stay literal.
-  return stripped.includes("</head>")
-    ? stripped.replace("</head>", () => `  ${buildTags(meta)}\n  ${extraHead}\n</head>`)
-    : stripped;
+  return injectHead(stripped, `${buildTags(meta)}\n  ${extraHead}`);
 }
+
+const newestFirst = (a: RepoRecord, b: RepoRecord) =>
+  (b.value.createdAt ?? "").localeCompare(a.value.createdAt ?? "");
 
 export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
+  const listView = url.searchParams.get("view") === "list";
   const rkey = url.searchParams.get("rkey")?.trim() ?? "";
 
   const shellRes = await fetch(new URL("/index.html", url.origin));
   const shell = await shellRes.text();
 
-  // The shell is always a valid response; per-post tags are the enhancement.
-  const fallback = () =>
-    new Response(shell, {
+  const page = (html: string) =>
+    new Response(html, {
       headers: {
         "content-type": "text/html; charset=utf-8",
         "cache-control": "public, max-age=0, s-maxage=60, stale-while-revalidate=86400",
       },
     });
+  // The shell is always a valid response; tags and data are the enhancement.
+  const fallback = () => page(shell);
 
-  if (!rkey) return fallback();
+  if (!listView && !rkey) return fallback();
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
 
   try {
+    if (listView) {
+      const { identity, records } = await fetchPublicEntries(controller.signal);
+      // The index leads with the newest post's cover.
+      const featured = records.toSorted(newestFirst)[0];
+      const cover = featured && recordCover(featured.value);
+      return page(
+        injectHead(
+          shell,
+          [cover && coverPreload(cover), bootScript({ identity, entries: records })]
+            .filter(Boolean)
+            .join("\n  "),
+        ),
+      );
+    }
+
     const entry = await fetchEntry(rkey, controller.signal);
     if (!entry || !isViewableByLink(entry.value)) return fallback();
 
@@ -274,19 +383,16 @@ export default async function handler(req: Request): Promise<Response> {
         url: `${url.origin}/blog/${rkey}`,
         publishedAt: record.createdAt,
       },
-      bootScript({
-        identity: entry.identity,
-        rkey,
-        record: { uri: entry.uri, value: record },
-      }),
+      // The post page shows only a real cover up top, never an inline image.
+      [
+        record.ogp?.url && coverPreload(record.ogp.url),
+        bootScript({ identity: entry.identity, rkey, record: { uri: entry.uri, value: record } }),
+      ]
+        .filter(Boolean)
+        .join("\n  "),
     );
 
-    return new Response(html, {
-      headers: {
-        "content-type": "text/html; charset=utf-8",
-        "cache-control": "public, max-age=0, s-maxage=60, stale-while-revalidate=86400",
-      },
-    });
+    return page(html);
   } catch {
     return fallback();
   } finally {

@@ -1,25 +1,20 @@
 import { useLayoutEffect, useRef } from "react";
-import { GLIDE_EASE, prefersReducedMotion } from "../lib/glide";
+import { glide, prefersReducedMotion, type AxisState, type Glide } from "../lib/glide";
 import { ownerAvatarSrc, useOwnerProfile } from "../lib/ownerProfile";
 import Img from "./Img";
 
 const NAME = "Ankit Bhandari";
-const GLIDE_MS = 480;
 
-interface PageBox {
-  x: number;
-  y: number;
-  size: number;
-}
+type Box = Record<"x" | "y" | "size", AxisState>;
 
 /**
- * Where the avatar that just unmounted sat, in page coordinates, for the one
- * mounting in its place to glide in from. Only good for the commit that
- * removed it.
+ * Where the avatar that just unmounted sat, in page coordinates, and how
+ * fast it was moving, for the one mounting in its place to glide on from.
+ * Only good for the commit that removed it.
  */
-let departed: PageBox | null = null;
+let departed: Box | null = null;
 
-const pageBox = (el: HTMLElement): PageBox => {
+const pageBox = (el: HTMLElement) => {
   const r = el.getBoundingClientRect();
   return { x: r.left + window.scrollX, y: r.top + window.scrollY, size: r.width };
 };
@@ -27,7 +22,7 @@ const pageBox = (el: HTMLElement): PageBox => {
 /**
  * The owner's avatar, shared by the home hero and the topbar: a navigation
  * unmounts one copy and mounts the other in the same commit, and the new one
- * glides over from where the old one was (see lib/glide.ts for why it's a
+ * springs over from where the old one was (see lib/glide.ts for why it's a
  * compositor animation). The circle holds its spot (and colour) until the
  * image is ready, so a late avatar fades in rather than popping; if Bluesky
  * can't serve it, the circle stays blank.
@@ -40,26 +35,35 @@ const OwnerAvatar = ({ className }: { className: string }) => {
     const el = ref.current!;
     const from = departed;
     departed = null;
+    let running: Glide<keyof Box> | null = null;
     if (from && !prefersReducedMotion()) {
       // FLIP: start drawn over the old spot, then let go
       const to = pageBox(el);
-      const dx = from.x - to.x;
-      const dy = from.y - to.y;
-      const scale = from.size / to.size;
-      if (Math.abs(dx) > 1 || Math.abs(dy) > 1 || Math.abs(scale - 1) > 0.01) {
-        el.animate(
-          [
-            { transform: `translate(${dx}px, ${dy}px) scale(${scale})` },
-            { transform: "translate(0px, 0px) scale(1)" },
-          ],
-          { duration: GLIDE_MS, easing: GLIDE_EASE },
+      const dx = from.x.value - to.x;
+      const dy = from.y.value - to.y;
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1 || Math.abs(from.size.value - to.size) > 1) {
+        running = glide(
+          el,
+          {
+            x: { from: dx, to: 0, velocity: from.x.velocity },
+            y: { from: dy, to: 0, velocity: from.y.velocity },
+            size: { from: from.size.value, to: to.size, velocity: from.size.velocity },
+          },
+          (at) => `translate(${at.x}px, ${at.y}px) scale(${at.size / to.size})`,
         );
       }
     }
     return () => {
       // Measured mid-glide this is where it is on screen, so a quick second
-      // navigation carries on from there instead of jumping.
-      departed = pageBox(el);
+      // navigation carries on from there, at the same speed, instead of
+      // jumping.
+      const box = pageBox(el);
+      const now = running?.now();
+      departed = {
+        x: { value: box.x, velocity: now?.x.velocity ?? 0 },
+        y: { value: box.y, velocity: now?.y.velocity ?? 0 },
+        size: { value: box.size, velocity: now?.size.velocity ?? 0 },
+      };
       queueMicrotask(() => {
         departed = null;
       });

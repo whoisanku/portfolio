@@ -15,7 +15,8 @@ export const BlogListSkeleton = () => (
     <Status label="Loading blogs…" />
     <section aria-hidden="true">
       <Bar className="mb-5 h-3 w-16" />
-      <div className="skeleton mb-5 aspect-video rounded-[12px]" />
+      {/* Link-preview shape, which covers are made in */}
+      <div className="skeleton mb-5 aspect-[1200/630] rounded-[12px]" />
       <Bar className="h-3 w-40" />
       <Bar className="mt-3.5 h-8 w-4/5" />
       <Bar className="mt-4 h-4 w-full" />

@@ -134,6 +134,16 @@ const PostMeta = ({
 const coverImgClass =
   "h-full w-full object-cover transition-transform duration-700 ease-out motion-safe:group-hover:scale-[1.035]";
 
+/**
+ * The cover's own shape, when the record knows it, so nothing gets cropped
+ * (kept within reason, so an odd upload can't swamp the page). An inline
+ * image standing in as the cover has no size on record: 16:9.
+ */
+function coverAspect({ ogp }: BlogEntry): number | undefined {
+  if (!ogp?.url || !ogp.width || !ogp.height) return undefined;
+  return Math.min(Math.max(ogp.width / ogp.height, 4 / 3), 2.4);
+}
+
 /** The newest post, led by its cover at full column width. */
 const FeaturedPost = (props: PostProps) => {
   const { entry } = props;
@@ -147,7 +157,10 @@ const FeaturedPost = (props: PostProps) => {
       {...prefetchOnIntent(`/blog/${entry.rkey}`)}
     >
       {cover && (
-        <div className="mb-5 aspect-video overflow-hidden rounded-[12px] border border-line bg-raise">
+        <div
+          className="mb-5 aspect-video overflow-hidden rounded-[12px] border border-line bg-raise"
+          style={{ aspectRatio: coverAspect(entry) }}
+        >
           <Img
             {...responsiveImage(cover, COLUMN_SIZES)}
             fallbackSrc={cover}

@@ -32,6 +32,7 @@ import { useDialog } from "./DialogProvider";
 import { createBlogEntry, readingTimeLabel, updateBlogEntry, whtwndUrl } from "../lib/blog";
 import { OWNER_HANDLE } from "../lib/config";
 import { uploadImageToGrove } from "../lib/grove";
+import { warmOptimizedImage } from "../lib/image";
 import PublishCoverDialog, { type CoverImage } from "./PublishCoverDialog";
 
 interface BlogEditorProps {
@@ -792,6 +793,8 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
           ogp,
           createdAt: editingBlog.createdAt,
         }, devMode);
+        // A swapped cover has no optimized sizes yet; make them before readers ask.
+        if (ogp && ogp.url !== initialCoverUrlRef.current) warmOptimizedImage(ogp.url);
 
         const rkey = editingBlog.rkey;
         setTitle("");
@@ -809,6 +812,7 @@ const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({
           isDraft: false,
           ogp,
         });
+        if (ogp) warmOptimizedImage(ogp.url);
         setTitle("");
         clearEditor();
         onPublished({

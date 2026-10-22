@@ -71,6 +71,12 @@ export function toEntry(uri: string, value: BlogEntryRecord): BlogEntry {
 const newestFirst = (a: BlogEntry, b: BlogEntry) =>
   (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
 
+/** Raw repo records as the index lists them: newest first. */
+export const entriesFromRecords = (records: { uri: string; value: BlogEntryRecord }[]) =>
+  records.map((r) => toEntry(r.uri, r.value)).sort(newestFirst);
+
+/** listRecords page size. A shorter page is the last one. */
+const PAGE_LIMIT = 100;
 /** Safety valve on paging: 10 pages × 100 entries. */
 const MAX_PAGES = 10;
 
@@ -81,18 +87,21 @@ const MAX_PAGES = 10;
  */
 export function fetchBlogEntries(signal?: AbortSignal): Promise<BlogEntry[]> {
   return withOwnerRepo(async (identity) => {
-    const entries: BlogEntry[] = [];
+    const records: { uri: string; value: BlogEntryRecord }[] = [];
     let cursor: string | undefined;
     for (let page = 0; page < MAX_PAGES; page++) {
       const res = await listRecords<BlogEntryRecord>(identity, BLOG_COLLECTION, {
+        limit: PAGE_LIMIT,
         cursor,
         signal,
       });
-      for (const r of res.records) entries.push(toEntry(r.uri, r.value));
+      records.push(...res.records);
       cursor = res.cursor;
-      if (!cursor || res.records.length === 0) break;
+      // The PDS hands back a cursor even on the last page; asking again
+      // costs a whole round trip to say "nothing more".
+      if (!cursor || res.records.length < PAGE_LIMIT) break;
     }
-    return entries.sort(newestFirst);
+    return entriesFromRecords(records);
   });
 }
 

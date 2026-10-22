@@ -63,8 +63,11 @@ const IDENTITY_KEY = `owner-identity:${OWNER_HANDLE}`;
 
 declare global {
   interface Window {
-    /** Seeded by the /blog/:rkey edge function, which already resolved it. */
-    __BLOG_BOOT__?: { identity?: Identity; rkey?: string; record?: unknown };
+    /**
+     * Seeded by the blog edge function (api/blog-og.ts), which already
+     * resolved it: one post's record on /blog/:rkey, the public entries on /blog.
+     */
+    __BLOG_BOOT__?: { identity?: Identity; rkey?: string; record?: unknown; entries?: unknown };
   }
 }
 
