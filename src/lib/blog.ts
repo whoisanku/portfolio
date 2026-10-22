@@ -145,6 +145,15 @@ export function coverUrl(entry: Pick<BlogEntry, "ogp" | "content">): string | un
   return entry.content.match(/!\[.*?\]\((.*?)\)/)?.[1];
 }
 
+/** URLs of the images in a post's markdown, in order. */
+export const imageUrls = (markdown: string): string[] =>
+  Array.from(markdown.matchAll(/!\[[^\]]*\]\(\s*<?([^)\s>]+)/g), (m) => m[1]);
+
+/** Every image the post page shows: the cover up top, then the body's. */
+export const postImageUrls = (entry: Pick<BlogEntry, "ogp" | "content">): string[] => [
+  ...new Set([entry.ogp?.url, ...imageUrls(entry.content)].filter((url) => url !== undefined)),
+];
+
 /** Markdown blurb -> plain-ish text excerpt for list views. */
 export function excerpt(markdown: string, length = 180): string {
   const text = markdownToPlainText(markdown);

@@ -21,6 +21,7 @@ import {
   entriesFromRecords,
   fetchBlogEntries,
   fetchBlogEntry,
+  postImageUrls,
   toEntry,
   type BlogEntry,
   type BlogEntryRecord,
@@ -28,6 +29,7 @@ import {
 import { OWNER_HANDLE, PUBLIC_API } from "./config";
 import { fetchAuthorPosts } from "./feed";
 import { fetchJson, isTransient } from "./http";
+import { COLUMN_SIZES, prepareImage } from "./image";
 import { readJson, removeKey, writeJson } from "./storage";
 
 export const queryClient = new QueryClient({
@@ -182,11 +184,18 @@ export const profileAvatarsQuery = (actors: string[]) => {
 
 /* ───────────────────────── Prefetch on intent ───────────────────────── */
 
-/** Warm a route's data when the visitor signals they're about to open it. */
+/**
+ * Warm a route's data when the visitor signals they're about to open it.
+ * For a post that includes its images, which the page waits for.
+ */
 export function prefetchRouteData(path: string) {
   if (path === "/blog") void queryClient.prefetchQuery(blogEntriesQuery());
   else if (path === "/posts") void queryClient.prefetchInfiniteQuery(postsFeedQuery());
   else if (path.startsWith("/blog/")) {
-    void queryClient.prefetchQuery(blogEntryQuery(path.slice("/blog/".length)));
+    const query = blogEntryQuery(path.slice("/blog/".length));
+    void queryClient.prefetchQuery(query).then(() => {
+      const entry = queryClient.getQueryData(query.queryKey);
+      if (entry) for (const url of postImageUrls(entry)) void prepareImage(url, COLUMN_SIZES);
+    });
   }
 }

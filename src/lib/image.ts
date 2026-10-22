@@ -78,6 +78,60 @@ export function responsiveImage(
   };
 }
 
+/** An image as it will paint: the file this device loaded, at its real pixel size. */
+export interface PreparedImage {
+  src: string;
+  width: number;
+  height: number;
+}
+
+const preparing = new Map<string, Promise<PreparedImage | null>>();
+const prepared = new Map<string, PreparedImage | null>();
+
+/**
+ * Download and decode an image before it's shown, picking the same variant
+ * an <img> with responsiveImage(url, sizes) would (so a <link rel=preload>
+ * of that srcset is reused), and learn what actually arrived. That matters
+ * because the optimizer never upscales: a 500px screenshot asked for at
+ * 1280w arrives 500px wide, and drawn from the srcset the browser would
+ * shrink it to 500/1280 of the slot. Null if it can't be loaded.
+ */
+export function prepareImage(url: string, sizes: string): Promise<PreparedImage | null> {
+  const key = `${sizes} ${url}`;
+  let job = preparing.get(key);
+  if (!job) {
+    job = load(url, sizes).then((image) => {
+      prepared.set(key, image);
+      return image;
+    });
+    preparing.set(key, job);
+  }
+  return job;
+}
+
+/** What prepareImage() came back with, once it has. */
+export const preparedImage = (url: string, sizes: string): PreparedImage | null | undefined =>
+  prepared.get(`${sizes} ${url}`);
+
+async function load(url: string, sizes: string): Promise<PreparedImage | null> {
+  const { src, srcSet } = responsiveImage(url, sizes);
+  const picked = new Image();
+  picked.sizes = sizes;
+  if (srcSet) picked.srcset = srcSet;
+  picked.src = src;
+  // Then the chosen file again, from cache, without the srcset: its natural
+  // size is the file's own rather than one scaled by a width descriptor.
+  const plain = new Image();
+  try {
+    await picked.decode();
+    plain.src = picked.currentSrc || src;
+    await plain.decode();
+  } catch {
+    return null;
+  }
+  return { src: plain.src, width: plain.naturalWidth, height: plain.naturalHeight };
+}
+
 /* ───────────────────────── Cloudinary ─────────────────────────
    Project screenshots and press logos live on Cloudinary, which resizes via
    a transformation segment in the URL path. */

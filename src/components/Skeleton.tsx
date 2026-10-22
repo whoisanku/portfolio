@@ -1,6 +1,8 @@
 /**
  * Loading placeholders shaped like the content they stand in for, so the
  * page keeps its layout while data loads and nothing jumps when it lands.
+ * Each page skeleton is at least a screen tall, so the footer waits below
+ * the fold instead of being shoved off it when the content arrives.
  * Screen readers get a single "Loading…" status instead of the shapes.
  */
 const Bar = ({ className, width }: { className: string; width?: string }) => (
@@ -11,7 +13,7 @@ const Status = ({ label }: { label: string }) => <span className="sr-only">{labe
 
 /** Blog index: featured cover + title, then a few rows. */
 export const BlogListSkeleton = () => (
-  <div className="space-y-16" role="status" aria-busy="true">
+  <div className="min-h-svh space-y-16" role="status" aria-busy="true">
     <Status label="Loading blogs…" />
     <section aria-hidden="true">
       <Bar className="mb-5 h-3 w-16" />
@@ -38,12 +40,11 @@ export const BlogListSkeleton = () => (
   </div>
 );
 
-/** A single post: back link, title, meta line, paragraphs. */
+/** A single post: title, meta line, paragraphs. */
 export const BlogPostSkeleton = () => (
-  <div role="status" aria-busy="true">
+  <div className="min-h-svh" role="status" aria-busy="true">
     <Status label="Loading post…" />
     <div aria-hidden="true">
-      <Bar className="mb-8 h-3.5 w-20" />
       <Bar className="h-10 w-11/12" />
       <Bar className="mt-3 h-10 w-2/3" />
       <Bar className="mt-5 mb-10 h-3.5 w-56" />
@@ -73,7 +74,7 @@ export const PostCardSkeleton = ({ withMedia = false }: { withMedia?: boolean })
 );
 
 export const PostsFeedSkeleton = ({ count = 3 }: { count?: number }) => (
-  <div role="status" aria-busy="true">
+  <div className="min-h-svh" role="status" aria-busy="true">
     <Status label="Loading posts…" />
     {Array.from({ length: count }, (_, i) => (
       <PostCardSkeleton key={i} withMedia={i === 1} />

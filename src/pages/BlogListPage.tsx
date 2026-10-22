@@ -18,7 +18,7 @@ import {
 } from "../lib/blog";
 import { COLUMN_SIZES, responsiveImage } from "../lib/image";
 import { blogEntriesQuery, invalidateBlog, removeBlogEntry } from "../lib/queries";
-import { loadBlogPostPage, prefetchOnIntent, whenIdle } from "../routes";
+import { loadBlogPostPage, prefetchOnIntent, preloadRoute, whenIdle } from "../routes";
 
 /** Rows shown under the featured post before "Show older posts". */
 const PAGE_SIZE = 8;
@@ -149,6 +149,11 @@ const FeaturedPost = (props: PostProps) => {
   const { entry } = props;
   const cover = coverUrl(entry);
   const blurb = excerpt(entry.content);
+
+  // The likeliest next page: once things are quiet, get it all (code,
+  // images) so it opens complete. Phones have no hover to warn us early.
+  useEffect(() => whenIdle(() => preloadRoute(`/blog/${entry.rkey}`)), [entry.rkey]);
+
   return (
     <Link
       to={`/blog/${entry.rkey}`}

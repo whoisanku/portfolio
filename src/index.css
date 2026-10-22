@@ -11,6 +11,74 @@
 @import "@fontsource/spline-sans-mono/latin-400.css";
 @import "@fontsource/spline-sans-mono/latin-500.css";
 
+/* Metric-matched fallbacks: local fonts resized and given the web fonts'
+   ascent, descent and line gap, so text set before (or between) the font
+   files arriving takes the same room. Without them the hero line grew 5px
+   for the moment its italic was still Georgia, and the swap re-wrapped
+   text. Numbers measured in Chromium against the files above, at the sizes
+   each face is mostly set in (display 40px, sans 16px, mono 13px). */
+@font-face {
+  font-family: "Newsreader Fallback";
+  src: local("Georgia");
+  font-weight: 400;
+  size-adjust: 95.65%;
+  ascent-override: 76.85%;
+  descent-override: 27.71%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Newsreader Fallback";
+  src: local("Georgia Italic"), local("Georgia-Italic");
+  font-style: italic;
+  font-weight: 400;
+  size-adjust: 86.33%;
+  ascent-override: 85.14%;
+  descent-override: 30.7%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Newsreader Fallback";
+  src: local("Georgia Bold"), local("Georgia-Bold");
+  font-weight: 700;
+  size-adjust: 88.85%;
+  ascent-override: 82.72%;
+  descent-override: 29.83%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Schibsted Grotesk Fallback";
+  src: local("Arial"), local("ArialMT");
+  font-weight: 400;
+  size-adjust: 104.89%;
+  ascent-override: 93.14%;
+  descent-override: 24.6%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Schibsted Grotesk Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT");
+  font-weight: 700;
+  size-adjust: 101.82%;
+  ascent-override: 95.95%;
+  descent-override: 25.34%;
+  line-gap-override: 0%;
+}
+
+/* Menlo on Apple systems, Courier New elsewhere; both within 0.3% here. */
+@font-face {
+  font-family: "Spline Sans Mono Fallback";
+  src: local("Menlo"), local("Menlo-Regular"), local("Courier New"), local("CourierNewPSMT");
+  font-weight: 400;
+  size-adjust: 99.66%;
+  ascent-override: 96.73%;
+  descent-override: 23.68%;
+  line-gap-override: 0%;
+}
+
 /* Make Tailwind's dark: variant follow the manual theme attribute */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
@@ -61,9 +129,9 @@
   --color-line: var(--line);
   --color-accent: var(--accent-ink);
 
-  --font-display: "Newsreader Variable", Georgia, serif;
-  --font-sans: "Schibsted Grotesk Variable", system-ui, sans-serif;
-  --font-mono: "Spline Sans Mono", ui-monospace, monospace;
+  --font-display: "Newsreader Variable", "Newsreader Fallback", Georgia, serif;
+  --font-sans: "Schibsted Grotesk Variable", "Schibsted Grotesk Fallback", system-ui, sans-serif;
+  --font-mono: "Spline Sans Mono", "Spline Sans Mono Fallback", ui-monospace, monospace;
 }
 
 /* ───────────────────────── Motion ─────────────────────────
@@ -84,31 +152,18 @@
 @custom-variant fine (@media (hover: hover) and (pointer: fine));
 
 /* Global type scale 0.9 (17px × 0.9 ≈ 15.3px base) */
+/* A slim scrollbar in the paper's colours, via the standard properties
+   rather than ::-webkit-scrollbar: Chrome and Safari don't reserve
+   scrollbar-gutter for a restyled scrollbar (and Chrome on macOS stops
+   overlaying it), so the page jumped sideways whenever a short loading
+   state grew tall enough to scroll. Native scrollbars keep the gutter
+   where they take space and stay overlaid where they don't. */
 html {
   font-size: 15.3px;
   background: var(--bg);
   scrollbar-gutter: stable;
-}
-
-/* Sleek custom scrollbar for global window */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: 9999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--ink-3);
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
 
 body {
@@ -906,7 +961,15 @@ body {
   }
 }
 
-/* ─── Editor scrollbar ─── */
+/* ─── Editor scrollbar ───
+   These panes have a fixed size, so a restyled scrollbar can't shift
+   anything. Chrome ignores ::-webkit-scrollbar wherever scrollbar-color is
+   set, and html's is inherited, so opt back out here. */
+.admin-editor-textarea,
+.admin-editor-preview {
+  scrollbar-color: auto;
+}
+
 .admin-editor-textarea::-webkit-scrollbar,
 .admin-editor-preview::-webkit-scrollbar {
   width: 6px;

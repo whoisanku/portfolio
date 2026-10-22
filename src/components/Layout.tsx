@@ -17,6 +17,7 @@ import { glide, prefersReducedMotion, type Glide } from "../lib/glide";
 import { readString, writeString } from "../lib/storage";
 import { prefetchOnIntent, whenIdle } from "../routes";
 import AnimatedSign from "./AnimatedSign";
+import BlogBackLink from "./BlogBackLink";
 import ChatWidget from "./ChatWidget";
 import Loader from "./Loader";
 import OwnerAvatar, { OwnerAvatarIcon } from "./OwnerAvatar";
@@ -474,7 +475,14 @@ const AdminLock = () => {
 /** While a lazy page loads for the first time (normally prefetched already). */
 const RouteFallback = () => {
   const { pathname } = useLocation();
-  return pathname.startsWith("/blog/") ? <BlogPostSkeleton /> : <Loader />;
+  return pathname.startsWith("/blog/") ? (
+    <>
+      <BlogBackLink />
+      <BlogPostSkeleton />
+    </>
+  ) : (
+    <Loader />
+  );
 };
 
 /** Shown for the moment the studio's code is still arriving. */

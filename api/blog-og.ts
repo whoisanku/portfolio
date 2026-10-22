@@ -21,7 +21,8 @@
  * waiting on the handle → DID → PDS → listRecords chain.
  *
  * Either way the cover the page leads with is preloaded from the <head>, so
- * it downloads alongside the app's code rather than after it.
+ * it downloads alongside the app's code rather than after it. A post's
+ * body images are too: the page holds its text until they're in.
  *
  * Deliberately dependency-free: this runs on the edge runtime, and anything it
  * imported from src/ would have to stay edge-safe forever. The markdown and
@@ -53,6 +54,8 @@ const IMAGE_WIDTHS = [256, 384, 640, 828, 1280, 1920];
 const IMAGE_HOSTS = new Set(["api.grove.storage", "cdn.bsky.app"]);
 const IMAGE_QUALITY = 75;
 const COLUMN_SIZES = "(max-width: 660px) calc(100vw - 56px), 604px";
+/** Enough for any post here; keeps a picture-heavy one from bloating the <head>. */
+const MAX_BODY_PRELOADS = 12;
 
 interface BlogEntryRecord {
   content?: string;
@@ -217,14 +220,20 @@ function coverUrl(record: BlogEntryRecord): string {
   return recordCover(record) ?? DEFAULT_IMAGE;
 }
 
+/** Mirrors imageUrls() in src/lib/blog.ts: the post's inline images, in order. */
+function imageUrls(markdown: string): string[] {
+  return Array.from(markdown.matchAll(/!\[[^\]]*\]\(\s*<?([^)\s>]+)/g), (m) => m[1]);
+}
+
 /**
- * A <link> that starts the cover downloading with the HTML. Its srcset and
- * sizes are exactly what the page's <img> asks for (responsiveImage() in
- * src/lib/image.ts), so the browser reuses this download for it. No href:
- * a browser that can't read imagesrcset then skips the preload instead of
- * fetching a size the <img> might not pick.
+ * A <link> that starts an image downloading with the HTML. Its srcset and
+ * sizes are exactly what the page asks for (responsiveImage() and
+ * prepareImage() in src/lib/image.ts), so the browser reuses this download.
+ * No href: a browser that can't read imagesrcset then skips the preload
+ * instead of fetching a size the page might not pick. Only the image the
+ * page leads with outranks the app's own code.
  */
-function coverPreload(url: string): string {
+function imagePreload(url: string, { lead = false } = {}): string {
   let hostname: string;
   try {
     const parsed = new URL(url);
@@ -233,13 +242,14 @@ function coverPreload(url: string): string {
   } catch {
     return "";
   }
+  const priority = lead ? ` fetchpriority="high"` : "";
   if (!IMAGE_HOSTS.has(hostname)) {
-    return `<link rel="preload" as="image" href="${escapeAttr(url)}" fetchpriority="high" />`;
+    return `<link rel="preload" as="image" href="${escapeAttr(url)}"${priority} />`;
   }
   const srcset = IMAGE_WIDTHS.map(
     (w) => `/_vercel/image?url=${encodeURIComponent(url)}&w=${w}&q=${IMAGE_QUALITY} ${w}w`,
   ).join(", ");
-  return `<link rel="preload" as="image" imagesrcset="${escapeAttr(srcset)}" imagesizes="${COLUMN_SIZES}" fetchpriority="high" />`;
+  return `<link rel="preload" as="image" imagesrcset="${escapeAttr(srcset)}" imagesizes="${COLUMN_SIZES}"${priority} />`;
 }
 
 function escapeAttr(value: string): string {
@@ -359,7 +369,7 @@ export default async function handler(req: Request): Promise<Response> {
       return page(
         injectHead(
           shell,
-          [cover && coverPreload(cover), bootScript({ identity, entries: records })]
+          [cover && imagePreload(cover, { lead: true }), bootScript({ identity, entries: records })]
             .filter(Boolean)
             .join("\n  "),
         ),
@@ -384,8 +394,13 @@ export default async function handler(req: Request): Promise<Response> {
         publishedAt: record.createdAt,
       },
       // The post page shows only a real cover up top, never an inline image.
+      // It holds its text until its images are in, so fetch them all now.
       [
-        record.ogp?.url && coverPreload(record.ogp.url),
+        record.ogp?.url && imagePreload(record.ogp.url, { lead: true }),
+        ...imageUrls(content)
+          .filter((src) => src !== record.ogp?.url)
+          .slice(0, MAX_BODY_PRELOADS)
+          .map((src) => imagePreload(src)),
         bootScript({ identity: entry.identity, rkey, record: { uri: entry.uri, value: record } }),
       ]
         .filter(Boolean)
