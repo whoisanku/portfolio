@@ -204,8 +204,23 @@ function markdownToPlainText(markdown: string): string {
     .trim();
 }
 
+/**
+ * Mirrors withoutHeadings() in src/lib/blog.ts.
+ * Drop heading lines (`# Title` and underlined `Title\n===`) so an excerpt
+ * starts at the prose instead of reading a section title into the first
+ * sentence ("The math kid Hi, I am…").
+ */
+function withoutHeadings(markdown: string): string {
+  return markdown
+    .replace(/\r\n/g, "\n")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/^ {0,3}#{1,6}(?:\s.*)?$/gm, "")
+    .replace(/^[^\n]*\S[^\n]*\n {0,3}(?:=+|-+)[ \t]*$/gm, "");
+}
+
+/** Mirrors excerpt() in src/lib/blog.ts. */
 function excerpt(markdown: string, length = 180): string {
-  const text = markdownToPlainText(markdown);
+  const text = markdownToPlainText(withoutHeadings(markdown));
   return text.length > length ? `${text.slice(0, length).trimEnd()}…` : text;
 }
 

@@ -154,9 +154,22 @@ export const postImageUrls = (entry: Pick<BlogEntry, "ogp" | "content">): string
   ...new Set([entry.ogp?.url, ...imageUrls(entry.content)].filter((url) => url !== undefined)),
 ];
 
+/**
+ * Drop heading lines (`# Title` and underlined `Title\n===`) so an excerpt
+ * starts at the prose instead of reading a section title into the first
+ * sentence ("The math kid Hi, I am…").
+ */
+function withoutHeadings(markdown: string): string {
+  return markdown
+    .replace(/\r\n/g, "\n")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/^ {0,3}#{1,6}(?:\s.*)?$/gm, "")
+    .replace(/^[^\n]*\S[^\n]*\n {0,3}(?:=+|-+)[ \t]*$/gm, "");
+}
+
 /** Markdown blurb -> plain-ish text excerpt for list views. */
 export function excerpt(markdown: string, length = 180): string {
-  const text = markdownToPlainText(markdown);
+  const text = markdownToPlainText(withoutHeadings(markdown));
   return text.length > length ? `${text.slice(0, length).trimEnd()}…` : text;
 }
 
