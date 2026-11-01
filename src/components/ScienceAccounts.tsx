@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { cloudinary } from "../lib/image";
 import { profileAvatarsQuery } from "../lib/queries";
 import Img from "./Img";
 
@@ -7,17 +6,17 @@ import Img from "./Img";
 interface ScienceAccount {
   name: string;
   url: string;
-  platform: "bsky" | "x";
+  platform: "bsky" | "linktree";
   actor?: string;
   localAvatar?: string;
 }
 
 const accounts: ScienceAccount[] = [
   {
-    name: "Saganism",
-    url: "https://bsky.app/profile/sagan.bsky.social",
-    platform: "bsky",
-    actor: "sagan.bsky.social",
+    name: "Matharium",
+    url: "https://linktr.ee/matharium",
+    platform: "linktree",
+    localAvatar: "/avatars/matharium.jpg",
   },
   {
     name: "Astronomy",
@@ -30,15 +29,6 @@ const accounts: ScienceAccount[] = [
     url: "https://bsky.app/profile/physics.bsky.social",
     platform: "bsky",
     actor: "physics.bsky.social",
-  },
-  {
-    name: "Cosmos Archive",
-    url: "https://x.com/cosmosarcive",
-    platform: "x",
-    localAvatar: cloudinary(
-      "https://res.cloudinary.com/dvnt65etc/image/upload/f_auto,q_auto/portfolio/science-avatar",
-      "c_fill,w_96,h_96",
-    ),
   },
 ];
 

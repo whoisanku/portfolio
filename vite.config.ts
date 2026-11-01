@@ -10,7 +10,7 @@ import { defineConfig, type Plugin } from "vite";
  * exist after bundling, hence a plugin rather than tags in index.html.
  */
 const CRITICAL_FONTS =
-  /^assets\/(newsreader-latin-opsz-(normal|italic)|schibsted-grotesk-latin-wght-normal|spline-sans-mono-latin-(400|500)-normal)-[\w-]+\.woff2$/;
+  /^assets\/(newsreader-latin-opsz-(normal|italic)|schibsted-grotesk-latin-wght-normal|spline-sans-mono-latin-(400|500)-normal|caveat-latin-500-normal)-[\w-]+\.woff2$/;
 
 function preloadCriticalFonts(): Plugin {
   return {

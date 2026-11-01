@@ -27,13 +27,16 @@ export const BlogListSkeleton = () => (
     <section aria-hidden="true">
       <Bar className="mb-4 h-3 w-28" />
       {[0, 1, 2].map((i) => (
-        <div key={i} className="flex items-center gap-4 border-t border-line py-5 sm:gap-6">
+        <div
+          key={i}
+          className="flex flex-col-reverse gap-3 border-t border-line py-5 first:border-t-0 sm:flex-row sm:items-center sm:gap-6"
+        >
           <div className="flex flex-1 flex-col gap-2">
             <Bar className="h-5 w-3/4" />
             <Bar className="h-3.5 w-full" />
             <Bar className="h-3 w-32" />
           </div>
-          <div className="skeleton h-[60px] w-[84px] shrink-0 rounded-[8px] sm:h-[76px] sm:w-[112px]" />
+          <div className="skeleton aspect-[1200/630] w-full shrink-0 rounded-[8px] sm:w-[152px]" />
         </div>
       ))}
     </section>
@@ -58,8 +61,9 @@ export const BlogPostSkeleton = () => (
 /** Posts feed: date rule, two lines of text, a stat row. */
 export const PostCardSkeleton = ({ withMedia = false }: { withMedia?: boolean }) => (
   <div className="py-7 first:pt-1" aria-hidden="true">
-    <div className="flex items-center gap-3">
-      <Bar className="h-3 w-14" />
+    {/* As tall as the date line it stands in for (its hover arrow sets the height) */}
+    <div className="flex h-[22px] items-center gap-3">
+      <Bar className="h-3 w-12" />
       <span className="wavy-rule flex-1" />
     </div>
     <Bar className="mt-4 h-4 w-full" />

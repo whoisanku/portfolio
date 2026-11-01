@@ -144,7 +144,7 @@ const PostCard = memo(({
 
   return (
     <article className="post-card group py-7 first:pt-1" data-scroll-anchor={post.cid}>
-      {/* Date line — quiet mono with a snake rule, arrow appears on hover */}
+      {/* Date line — handwritten, like the section labels, with a snake rule; arrow appears on hover */}
       <header className="flex items-center gap-3">
         {post.pinned && (
           <span className="inline-flex shrink-0 items-center gap-1 font-mono text-[10px] tracking-[0.14em] text-accent uppercase">
@@ -152,7 +152,7 @@ const PostCard = memo(({
             Pinned
           </span>
         )}
-        <time className="font-mono text-[11px] tracking-[0.14em] text-ink-3 uppercase">
+        <time className="font-hand text-[18px] leading-[1.1] font-medium tracking-[0.01em] whitespace-nowrap text-ink-3">
           {formatDate(post.createdAt)}
         </time>
         <span className="wavy-rule flex-1" aria-hidden="true" />

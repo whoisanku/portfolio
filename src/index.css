@@ -10,6 +10,7 @@
 @import "@fontsource-variable/schibsted-grotesk/wght.css";
 @import "@fontsource/spline-sans-mono/latin-400.css";
 @import "@fontsource/spline-sans-mono/latin-500.css";
+@import "@fontsource/caveat/latin-500.css";
 
 /* Metric-matched fallbacks: local fonts resized and given the web fonts'
    ascent, descent and line gap, so text set before (or between) the font
@@ -132,6 +133,7 @@
   --font-display: "Newsreader Variable", "Newsreader Fallback", Georgia, serif;
   --font-sans: "Schibsted Grotesk Variable", "Schibsted Grotesk Fallback", system-ui, sans-serif;
   --font-mono: "Spline Sans Mono", "Spline Sans Mono Fallback", ui-monospace, monospace;
+  --font-hand: "Caveat", cursive;
 }
 
 /* ───────────────────────── Motion ─────────────────────────
@@ -426,7 +428,7 @@ body {
   contain-intrinsic-size: auto 480px;
 }
 
-/* ─── Section label (mono, with trailing rule) ─── */
+/* ─── Section label (handwritten, with trailing rule) ─── */
 .section-label {
   display: flex;
   align-items: center;
@@ -434,11 +436,11 @@ body {
 }
 
 .section-label > span {
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-hand);
+  font-size: 20px;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
   color: var(--ink-3);
   white-space: nowrap;
 }
@@ -458,11 +460,40 @@ body {
   mask-size: 8px 4px;
 }
 
-/* ─── Project rows (selected work) ─── */
 .section-label-strong::after {
   height: 4px !important;
 }
 
+/* Thumbnail for a post without a cover: the section rule's wave as a
+   texture, with the title's initial written over it */
+.cover-standin {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-family: var(--font-hand);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink-2);
+}
+
+.cover-standin::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--line);
+  opacity: 0.7;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 10' width='16' height='10'%3E%3Cpath d='M0 5 Q4 1 8 5 T16 5' fill='none' stroke='black' stroke-width='1' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 10' width='16' height='10'%3E%3Cpath d='M0 5 Q4 1 8 5 T16 5' fill='none' stroke='black' stroke-width='1' stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask-size: 16px 10px;
+  mask-size: 16px 10px;
+}
+
+.cover-standin > span {
+  position: relative;
+}
+
+/* ─── Project rows (selected work) ─── */
 .project-row {
   display: flex;
   align-items: center;

@@ -166,7 +166,7 @@ const HomePage = () => {
 
       {/* Press — logo marquee */}
       <section>
-        <div className="mb-4 text-center font-mono text-[12px] font-medium uppercase tracking-[0.22em] text-ink-3">
+        <div className="mb-4 text-center font-hand text-[20px] leading-[1.1] font-medium tracking-[0.01em] text-ink-3">
           Featured in
         </div>
         <div ref={marqueeRef} className="press-marquee">

@@ -186,7 +186,12 @@ const FeaturedPost = (props: PostProps) => {
   );
 };
 
-/** Title, one-line excerpt and meta on the left; a small cover on the right. */
+/**
+ * Title, one-line excerpt and meta, with the cover on the right (above, on
+ * phones). The thumbnail keeps the link-preview shape covers are made in, so
+ * a cover shows whole instead of cropped mid-word; a post without one gets a
+ * stand-in of the same size so every row lines up.
+ */
 const PostRow = (props: PostProps) => {
   const { entry } = props;
   const cover = coverUrl(entry);
@@ -195,7 +200,7 @@ const PostRow = (props: PostProps) => {
     <li className="border-t border-line" data-scroll-anchor={entry.rkey}>
       <Link
         to={`/blog/${entry.rkey}`}
-        className="group flex items-center gap-4 py-5 sm:gap-6"
+        className="group flex flex-col-reverse gap-3 py-5 sm:flex-row sm:items-center sm:gap-6"
         {...prefetchOnIntent(`/blog/${entry.rkey}`)}
       >
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -205,17 +210,21 @@ const PostRow = (props: PostProps) => {
           {blurb && <p className="truncate text-[14px] leading-[1.5] text-ink-2">{blurb}</p>}
           <PostMeta {...props} />
         </div>
-        {cover && (
-          <div className="h-[60px] w-[84px] shrink-0 overflow-hidden rounded-[8px] border border-line bg-raise sm:h-[76px] sm:w-[112px]">
+        <div className="aspect-[1200/630] w-full shrink-0 overflow-hidden rounded-[8px] border border-line bg-raise sm:w-[152px]">
+          {cover ? (
             <Img
-              {...responsiveImage(cover, "(min-width: 640px) 112px, 84px")}
+              {...responsiveImage(cover, "(min-width: 640px) 152px, calc(100vw - 56px)")}
               fallbackSrc={cover}
               alt=""
               loading="lazy"
               className={coverImgClass}
             />
-          </div>
-        )}
+          ) : (
+            <div aria-hidden="true" className="cover-standin text-[34px] sm:text-[24px]">
+              <span>{entry.title.trim().charAt(0)}</span>
+            </div>
+          )}
+        </div>
       </Link>
     </li>
   );
@@ -383,7 +392,8 @@ const BlogListPage = () => {
               <YearFilter years={years} value={activeYear} onChange={setYear} />
             )}
           </div>
-          <ul className="flex flex-col">
+          {/* The label's wavy rule already separates the first row */}
+          <ul className="flex flex-col [&>li:first-child]:border-t-0">
             {visible.map((entry) => (
               <PostRow key={entry.rkey} {...postProps(entry)} />
             ))}
