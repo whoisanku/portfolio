@@ -98,11 +98,16 @@
   --ink-3: #878e9c;
   --line: #dcdfe7;
   --accent-ink: var(--accent);
-  /* Popover lift (resume tip, lock menu): a tight contact shadow plus a soft,
-     ink-tinted ambient one. On light paper a single heavy black blur reads as
-     a grey smudge rather than elevation. */
-  --pop-shadow: drop-shadow(0 1px 1px rgb(25 29 36 / 0.05))
-    drop-shadow(0 8px 18px rgb(25 29 36 / 0.08));
+  /* Popovers (resume tip, lock menu, chat help) sit on their own surface —
+     white over the cool paper — and lift with a tight contact shadow plus a
+     soft, ink-tinted ambient one. Stacked drop-shadows compound (each one
+     also shadows the last), so every layer stays faint. The border is lit
+     from above: a touch lighter on top, a touch darker underneath. */
+  --pop-bg: #ffffff;
+  --pop-edge-top: #e3e6ec;
+  --pop-edge-bottom: #d3d7df;
+  --pop-shadow: drop-shadow(0 1px 1px rgb(25 29 36 / 0.06))
+    drop-shadow(0 6px 14px rgb(25 29 36 / 0.08));
   color-scheme: light;
 }
 
@@ -114,9 +119,13 @@
   --ink-3: #636b7c;
   --line: #292e38;
   --accent-ink: #8fb0f5;
-  /* Dark paper needs a denser shadow to register at all */
-  --pop-shadow: drop-shadow(0 1px 2px rgb(0 0 0 / 0.35))
-    drop-shadow(0 10px 24px rgb(0 0 0 / 0.45));
+  /* Any blurred shadow on near-black paper reads as a dark halo, not depth.
+     So a dark popover gets its height from a lighter surface and a top edge
+     that catches the light; the shadow only tucks under the bottom edge. */
+  --pop-bg: #16191f;
+  --pop-edge-top: #3a404c;
+  --pop-edge-bottom: #23272f;
+  --pop-shadow: drop-shadow(0 2px 2px rgb(0 0 0 / 0.35));
   color-scheme: dark;
 }
 

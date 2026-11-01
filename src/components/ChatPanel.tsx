@@ -3,6 +3,7 @@ import { HelpCircle, Loader2, LogOut, Send } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -59,6 +60,7 @@ const TooltipShell = ({
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
+  const edgeId = useId();
 
   // Track the content's height so the bubble always wraps it exactly.
   useLayoutEffect(() => {
@@ -107,13 +109,19 @@ const TooltipShell = ({
             left: 0,
             overflow: "visible",
             pointerEvents: "none",
-            filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.45))",
+            filter: "var(--pop-shadow)",
           }}
         >
+          <defs>
+            <linearGradient id={edgeId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" style={{ stopColor: "var(--pop-edge-top)" }} />
+              <stop offset="1" style={{ stopColor: "var(--pop-edge-bottom)" }} />
+            </linearGradient>
+          </defs>
           <path
             d={d}
-            fill="var(--color-paper)"
-            stroke="var(--color-line)"
+            fill="var(--pop-bg)"
+            stroke={`url(#${edgeId})`}
             strokeWidth="1"
             strokeLinejoin="round"
             vectorEffect="non-scaling-stroke"

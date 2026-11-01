@@ -1,9 +1,10 @@
-import { Download, Loader2, Lock, LockOpen, LogOut, X } from "lucide-react";
+import { Download, Loader2, Lock, LockOpen, LogOut } from "lucide-react";
 import {
   lazy,
   Suspense,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -262,12 +263,21 @@ const DROPDOWN_RADIUS = 10;
 /**
  * Wraps a dropdown's content and paints its bubble — rounded body + caret — as a
  * single SVG path (so the caret IS the border, no seam), with the caret near the
- * right edge pointing up at the lock icon. Matches the resume tooltip's style.
- * Measures content height so the bubble fits any menu without distortion.
+ * right edge pointing up at the icon above it (lock menu, resume tip).
+ * Measures content height so the bubble fits any content without distortion.
  */
-const DropdownShell = ({ width, children }: { width: number; children: ReactNode }) => {
+const DropdownShell = ({
+  width,
+  className = "admin-dropdown",
+  children,
+}: {
+  width: number;
+  className?: string;
+  children: ReactNode;
+}) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
+  const edgeId = useId();
 
   // Follow the content's height (status text and errors come and go).
   useLayoutEffect(() => {
@@ -294,7 +304,7 @@ const DropdownShell = ({ width, children }: { width: number; children: ReactNode
     `L0 ${top + r} A${r} ${r} 0 0 1 ${r} ${top} Z`;
 
   return (
-    <div className="admin-dropdown" style={{ width }}>
+    <div className={className} style={{ width }}>
       {height > 0 && (
         <svg
           aria-hidden="true"
@@ -310,10 +320,16 @@ const DropdownShell = ({ width, children }: { width: number; children: ReactNode
             filter: "var(--pop-shadow)",
           }}
         >
+          <defs>
+            <linearGradient id={edgeId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" style={{ stopColor: "var(--pop-edge-top)" }} />
+              <stop offset="1" style={{ stopColor: "var(--pop-edge-bottom)" }} />
+            </linearGradient>
+          </defs>
           <path
             d={d}
-            fill="var(--color-paper)"
-            stroke="var(--color-line)"
+            fill="var(--pop-bg)"
+            stroke={`url(#${edgeId})`}
             strokeWidth="1"
             strokeLinejoin="round"
             vectorEffect="non-scaling-stroke"
@@ -561,49 +577,17 @@ const Layout = () => {
                     exit={prefersReduced ? { opacity: 0 } : { opacity: 0, transform: "translateY(-4px) scale(0.96)" }}
                     transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
                     className="absolute right-0 top-full mt-3 cursor-pointer"
-                    style={{ width: 208, zIndex: 50, transformOrigin: "top right" }}
+                    style={{ zIndex: 50, transformOrigin: "top right" }}
                     onClick={dismissResumeTip}
                   >
-                    {/* Whole bubble — rounded body + caret — is one continuous path, so the
-                        caret IS the border (no seam). The caret sits near the right edge,
-                        pointing up at the download icon, while the body extends left so the
-                        lock's login dialog never overlaps it. */}
-                    <svg
-                      aria-hidden="true"
-                      width="208"
-                      viewBox="0 0 208 90"
-                      preserveAspectRatio="none"
-                      className="absolute left-0"
-                      style={{
-                        top: -8,
-                        height: "calc(100% + 8px)",
-                        overflow: "visible",
-                        pointerEvents: "none",
-                        filter: "var(--pop-shadow)",
-                      }}
-                    >
-                      <path
-                        d="M10 8 L186 8 L190.5 1.7 Q192 0.5 193.5 1.7 L198 8 A10 10 0 0 1 208 18 L208 80 A10 10 0 0 1 198 90 L10 90 A10 10 0 0 1 0 80 L0 18 A10 10 0 0 1 10 8 Z"
-                        fill="var(--color-paper)"
-                        stroke="var(--color-line)"
-                        strokeWidth="1"
-                        strokeLinejoin="round"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    </svg>
-                    <div className="relative px-4 py-3.5 flex items-start gap-2.5">
-                      <p className="flex-1 font-mono text-[11px] leading-relaxed text-ink-3">
+                    {/* Same bubble as the lock menu: caret near the right edge, pointing up
+                        at the download icon, while the body extends left so the lock's
+                        login dialog never overlaps it. */}
+                    <DropdownShell width={208} className="">
+                      <p className="px-4 py-3.5 font-mono text-[11px] leading-relaxed text-ink-3">
                         Download Ankit's resume as a PDF from here.
                       </p>
-                      <button
-                        type="button"
-                        onClick={dismissResumeTip}
-                        className="mt-0.5 shrink-0 text-ink-3 hover:text-ink transition-colors"
-                        aria-label="Dismiss"
-                      >
-                        <X size={11} />
-                      </button>
-                    </div>
+                    </DropdownShell>
                   </m.div>
                 )}
               </AnimatePresence>
