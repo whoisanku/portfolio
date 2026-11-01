@@ -6,6 +6,33 @@ export interface AspectRatio {
   height: number;
 }
 
+/**
+ * The frame a feed photo is shown in: the image's own ratio, as wide as the
+ * column allows but never taller than MEDIA_MAX_HEIGHT. A photo that would
+ * be taller shrinks as a whole — narrower as well as shorter — so a tall
+ * screenshot doesn't take over the screen, and since the frame itself
+ * narrows there is never a gap down its sides. Past 1:2 the frame holds
+ * that ratio and the photo crops (the lightbox shows all of it).
+ */
+export const MEDIA_MAX_HEIGHT = 440;
+export const MEDIA_RATIO_MIN = 1 / 2;
+
+export const mediaFrameRatio = (ar?: AspectRatio): number | undefined => {
+  if (!ar || ar.width <= 0 || ar.height <= 0) return undefined;
+  return Math.max(MEDIA_RATIO_MIN, ar.width / ar.height);
+};
+
+/** Width + ratio for a media frame (see mediaFrameRatio); undefined when the
+ *  post recorded no ratio, so the caller can fall back to natural size. */
+export const mediaFrameStyle = (ar?: AspectRatio) => {
+  const ratio = mediaFrameRatio(ar);
+  if (ratio === undefined) return undefined;
+  return {
+    aspectRatio: ratio,
+    width: `min(100%, ${Math.round(MEDIA_MAX_HEIGHT * ratio)}px)`,
+  };
+};
+
 export interface FeedImage {
   thumb: string;
   fullsize: string;

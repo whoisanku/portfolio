@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef, useState, type TouchEvent } from "react";
-import type { FeedImage } from "../lib/feed";
+import { mediaFrameStyle, type FeedImage } from "../lib/feed";
 import Img from "./Img";
 
 /** Horizontal travel (px) that counts as a swipe. */
@@ -21,6 +21,9 @@ const MediaCarousel = ({
   const [index, setIndex] = useState(0);
   const count = images.length;
   const go = (delta: number) => setIndex((i) => (i + delta + count) % count);
+  // One frame for every slide, shaped and sized by the first photo (same rule
+  // as a single image); the others fill it. Without a ratio, a fixed height.
+  const frame = mediaFrameStyle(images[0].aspectRatio);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const onTouchStart = (e: TouchEvent) => {
@@ -42,6 +45,7 @@ const MediaCarousel = ({
   return (
     <div
       className="relative mt-4 overflow-hidden rounded-xl border border-line bg-raise"
+      style={frame && { width: frame.width }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
       role="group"
@@ -58,7 +62,8 @@ const MediaCarousel = ({
             key={image.fullsize}
             type="button"
             onClick={() => onImageClick(i)}
-            className="h-[300px] w-full shrink-0 cursor-zoom-in sm:h-[400px]"
+            className={`w-full shrink-0 cursor-zoom-in ${frame ? "" : "h-[300px] sm:h-[400px]"}`}
+            style={{ aspectRatio: frame?.aspectRatio }}
             aria-label={`View image ${i + 1} of ${count}`}
             tabIndex={i === index ? undefined : -1}
           >
@@ -77,7 +82,7 @@ const MediaCarousel = ({
         type="button"
         onClick={() => go(-1)}
         aria-label="Previous image"
-        className="absolute top-1/2 left-2 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/60 text-white/90 transition-colors hover:text-accent"
+        className="pressable absolute top-1/2 left-3 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-paper/90 text-ink backdrop-blur-sm transition-colors hover:text-accent"
       >
         <ChevronLeft size={17} className="-translate-x-[1px]" />
       </button>
@@ -85,14 +90,14 @@ const MediaCarousel = ({
         type="button"
         onClick={() => go(1)}
         aria-label="Next image"
-        className="absolute top-1/2 right-2 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-black/60 text-white/90 transition-colors hover:text-accent"
+        className="pressable absolute top-1/2 right-3 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-paper/90 text-ink backdrop-blur-sm transition-colors hover:text-accent"
       >
         <ChevronRight size={17} className="translate-x-[1px]" />
       </button>
 
-      {/* Counter */}
-      <span className="absolute top-2.5 right-2.5 rounded-full bg-black/65 px-2 py-0.5 font-mono text-[10px] tabular-nums text-white/90">
-        {index + 1}/{count}
+      {/* Counter — same chip as the video player's controls */}
+      <span className="absolute top-3 right-3 rounded-full bg-paper/90 px-2.5 py-1 font-mono text-[10.5px] tabular-nums text-ink-2 backdrop-blur-sm">
+        {index + 1} / {count}
       </span>
 
       {/* Dots */}
@@ -104,7 +109,7 @@ const MediaCarousel = ({
             onClick={() => setIndex(i)}
             aria-label={`Go to image ${i + 1}`}
             className={`h-1.5 rounded-full cursor-pointer transition-[width,background-color] duration-300 ${
-              i === index ? "w-4 bg-accent" : "w-1.5 bg-white/50 hover:bg-white/80"
+              i === index ? "w-4 bg-accent" : "w-1.5 bg-ink/35 hover:bg-ink/60"
             }`}
           />
         ))}

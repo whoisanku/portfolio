@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { ArrowUp, ArrowUpRight, Pin } from "lucide-react";
+import { ArrowUpRight, Pin } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import BackToTop from "../components/BackToTop";
 import ErrorMessage from "../components/ErrorMessage";
 import Img from "../components/Img";
 import Lightbox, { type Gallery } from "../components/Lightbox";
@@ -9,7 +10,7 @@ import { PostCardSkeleton, PostsFeedSkeleton } from "../components/Skeleton";
 import VideoPlayer from "../components/VideoPlayer";
 import { bskyPostUrl } from "../lib/atproto";
 import { OWNER_HANDLE } from "../lib/config";
-import { gifEmbed, type Facet, type FeedImage, type FeedPost } from "../lib/feed";
+import { gifEmbed, mediaFrameStyle, type Facet, type FeedImage, type FeedPost } from "../lib/feed";
 import { postsFeedQuery } from "../lib/queries";
 
 /** How far below the viewport (px) the next page starts loading. */
@@ -141,6 +142,7 @@ const PostCard = memo(({
   const gif = post.external ? gifEmbed(post.external.uri) : null;
   const external = gif ? null : post.external;
   const single = post.images.length === 1 ? post.images[0] : null;
+  const frame = mediaFrameStyle(single?.aspectRatio);
 
   return (
     <article className="post-card group py-7 first:pt-1" data-scroll-anchor={post.cid}>
@@ -179,20 +181,28 @@ const PostCard = memo(({
         <MediaCarousel images={post.images} onImageClick={(index) => onImageClick(post.images, index)} />
       ) : single ? (
         <div className="mt-4">
+          {/* The photo's own ratio, as wide as fits under the height cap (see
+              mediaFrameRatio) — the frame is reserved before the image loads.
+              Posts without a recorded ratio fall back to the image's natural
+              size under the same cap. */}
           <button
             type="button"
             onClick={() => onImageClick(post.images, 0)}
-            className="block w-full cursor-zoom-in overflow-hidden rounded-xl border border-line bg-raise"
+            className={`block cursor-zoom-in overflow-hidden rounded-xl border border-line bg-raise ${
+              frame ? "" : "w-fit max-w-full"
+            }`}
             aria-label="View image"
+            style={frame}
           >
-            {/* width/height reserve the image's shape before it loads */}
             <Img
               src={single.thumb}
               alt={single.alt || "Post image"}
-              width={single.aspectRatio?.width}
-              height={single.aspectRatio?.height}
               loading="lazy"
-              className="block h-auto max-h-[420px] w-full object-cover"
+              className={
+                frame
+                  ? "block h-full w-full object-cover"
+                  : "block h-auto max-h-[440px] w-auto max-w-full"
+              }
             />
           </button>
         </div>
@@ -224,37 +234,47 @@ const PostCard = memo(({
         </div>
       )}
 
+      {/* Link card — the site's banner flush against the card's edge at the
+          standard OG ratio (1.91:1), title and description, and an "open" bar
+          along the bottom. Beside the text from `sm` up (200px, one-line
+          title and description so the banner sets the height); on top on a
+          phone, where the text gets two lines each. Hover only touches the
+          bar: it tints, "open" takes the accent and its arrow nudges out. */}
       {external && (
         <a
           href={external.uri}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-4 flex items-stretch overflow-hidden rounded-xl border border-line bg-raise transition-colors hover:border-accent"
+          className="group/link mt-4 flex flex-col overflow-hidden rounded-xl border border-line bg-raise focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:flex-row"
         >
           {external.thumb && (
-            <span className="w-24 shrink-0 border-r border-line bg-raise sm:w-28">
-              <Img
-                src={external.thumb}
-                alt=""
-                loading="lazy"
-                className="h-full w-full object-cover"
-              />
+            <span className="block aspect-[1.91/1] w-full shrink-0 overflow-hidden border-b border-line bg-paper sm:w-[200px] sm:border-r sm:border-b-0">
+              <Img src={external.thumb} alt="" loading="lazy" className="h-full w-full object-cover" />
             </span>
           )}
-          <span className="min-w-0 px-4 py-3.5">
-            <span className="block truncate font-display text-[15.5px] font-medium text-ink">
-              {external.title || external.uri}
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="flex flex-col px-3.5 pt-3">
+              <span className="line-clamp-2 font-display text-[16px] leading-snug font-medium text-ink sm:line-clamp-1">
+                {external.title || external.uri}
+              </span>
+              {external.description && (
+                <span className="mt-1 line-clamp-2 text-[12.5px] leading-relaxed text-ink-2 sm:line-clamp-1">
+                  {external.description}
+                </span>
+              )}
             </span>
-            {external.description && (
-              <span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-ink-3">
-                {external.description}
+            <span className="mt-3 flex items-center justify-between gap-3 border-t border-line px-3.5 py-2 font-mono text-[11px] text-ink-3 transition-colors duration-200 group-active/link:bg-ink/[0.04] sm:mt-auto fine:group-hover/link:bg-ink/[0.04]">
+              <span className="min-w-0 truncate">{hostnameOf(external.uri) ?? external.uri}</span>
+              <span className="inline-flex shrink-0 items-center gap-1.5 transition-colors duration-200 fine:group-hover/link:text-accent">
+                open
+                <ArrowUpRight
+                  size={11}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                  className="transition-transform duration-[250ms] ease-out fine:group-hover/link:translate-x-0.5 fine:group-hover/link:-translate-y-0.5"
+                />
               </span>
-            )}
-            {hostnameOf(external.uri) && (
-              <span className="mt-1.5 block truncate font-mono text-[10.5px] text-ink-3">
-                {hostnameOf(external.uri)}
-              </span>
-            )}
+            </span>
           </span>
         </a>
       )}
@@ -312,15 +332,6 @@ const PostsPage = () => {
     });
   }, []);
   const closeLightbox = useCallback(() => setGallery(null), []);
-
-  // Back-to-top affordance once the feed scrolls past a screen or so
-  const [showTop, setShowTop] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setShowTop(window.scrollY > 600);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   // Keep reading without a click: fetch the next page well before the end.
   // A failed page stops the loop until the reader retries.
@@ -398,16 +409,7 @@ const PostsPage = () => {
         <p className="py-12 text-center font-mono text-xs text-ink-3">No posts yet.</p>
       )}
 
-      <button
-        type="button"
-        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        aria-label="Back to top"
-        tabIndex={showTop ? undefined : -1}
-        className={`pressable fixed right-5 bottom-20 z-40 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full border border-line bg-paper text-ink-3 shadow-[0_4px_18px_rgba(0,0,0,0.12)] transition duration-300 hover:border-accent hover:text-accent ${showTop ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
-          }`}
-      >
-        <ArrowUp size={20} />
-      </button>
+      <BackToTop />
 
       <Lightbox gallery={gallery} onClose={closeLightbox} />
     </div>

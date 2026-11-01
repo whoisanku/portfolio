@@ -344,69 +344,64 @@ body {
 
 
 /* ─── Video player (posts page) ─── */
-.vid-range {
+/* Seek strip along the frame's bottom edge. The input is only the touch
+   target — invisible, 28px tall so a thumb can land on it — while the player
+   draws the 3px line and the drag marker underneath. `touch-action: none`
+   lets a horizontal drag scrub instead of scrolling the page. */
+.vid-seek {
   -webkit-appearance: none;
   appearance: none;
-  height: 3.5px;
-  border-radius: 9999px;
-  outline: none;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  opacity: 0;
   cursor: pointer;
+  touch-action: none;
 }
 
-.vid-range::-webkit-slider-thumb {
+.vid-seek::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--accent-ink);
-  border: 0;
-  transition: transform 0.15s ease;
+  width: 28px;
+  height: 28px;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .vid-range::-webkit-slider-thumb:hover {
-    transform: scale(1.25);
+.vid-seek::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border: 0;
+}
+
+.vid-seek:disabled {
+  cursor: default;
+}
+
+/* The play ring turns into a spinning quarter arc while the stream loads or
+   buffers. Starts from 12 o'clock like the progress ring it replaces. */
+.vid-spin {
+  animation: vid-spin 0.9s linear infinite;
+}
+
+@keyframes vid-spin {
+  from {
+    transform: rotate(-90deg);
+  }
+  to {
+    transform: rotate(270deg);
   }
 }
 
-.vid-range::-moz-range-thumb {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--accent-ink);
-  border: 0;
+@media (prefers-reduced-motion: reduce) {
+  .vid-spin {
+    animation-duration: 2.4s;
+  }
 }
 
-/* Vertical volume slider (pops above the speaker button) */
-.vid-range-vertical {
-  -webkit-appearance: none;
-  appearance: none;
-  writing-mode: vertical-lr;
-  direction: rtl;
-  width: 4px;
-  height: 58px;
-  border-radius: 9999px;
-  outline: none;
-  cursor: pointer;
-}
-
-.vid-range-vertical::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--accent-ink);
-  border: 0;
-}
-
-.vid-range-vertical::-moz-range-thumb {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--accent-ink);
-  border: 0;
+/* The input is invisible, so keyboard focus shows on the frame instead */
+.video-frame:has(.vid-seek:focus-visible) {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
 }
 
 .video-frame:fullscreen {

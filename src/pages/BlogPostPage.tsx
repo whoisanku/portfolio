@@ -5,6 +5,7 @@ import Markdown, { type Components } from "react-markdown";
 import { useNavigate, useParams } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "../auth/AuthContext";
+import BackToTop from "../components/BackToTop";
 import BlogBackLink from "../components/BlogBackLink";
 import ErrorMessage from "../components/ErrorMessage";
 import Img from "../components/Img";
@@ -232,6 +233,7 @@ const BlogPostPage = ({ rkey: rkeyOverride }: { rkey?: string } = {}) => {
       <BlogBackLink />
       {/* key resets the view's state when navigating between posts */}
       <BlogPostView key={rkey} rkey={rkey} />
+      <BackToTop />
     </>
   );
 };
