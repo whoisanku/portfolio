@@ -35,7 +35,7 @@
       "destination": "/api/blog-og?rkey=:rkey"
     },
     {
-      "source": "/((?!_vercel/).*)",
+      "source": "/((?!_vercel/|assets/).*)",
       "destination": "/index.html"
     }
   ]
