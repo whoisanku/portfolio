@@ -74,7 +74,7 @@ const VideoPlayer = ({ video }: { video: FeedVideo }) => {
     let hls: { destroy: () => void } | null = null;
 
     const startIfWanted = () => {
-      if (inViewRef.current || wantsPlayRef.current) void el.play().catch(() => {});
+      if (inViewRef.current || wantsPlayRef.current) void el.play().catch(() => setWaiting(false));
     };
 
     const attach = async () => {
@@ -161,10 +161,12 @@ const VideoPlayer = ({ video }: { video: FeedVideo }) => {
           wantsPlayRef.current = false;
           el.pause();
           setWaiting(false);
-        } else if (el.currentSrc || el.src) {
-          // Scrolled in before the first frames arrived: show it loading
+        } else {
+          // Scrolled in before the first frames arrived — the stream may still
+          // be attaching (hls.js downloading on a slow link): show it loading.
+          // A refused autoplay (e.g. iPhone Low Power Mode) clears it again.
           if (el.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) setWaiting(true);
-          void el.play().catch(() => {});
+          if (el.currentSrc || el.src) void el.play().catch(() => setWaiting(false));
         }
       },
       { threshold: 0.45 },
