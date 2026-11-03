@@ -3,7 +3,7 @@
 # Ankit Bhandari
 
 **Designer & software developer based in Nepal.**  
-Loves building things at the intersection of design and decentralized tech.
+I love building things at the intersection of design and decentralized tech.
 
 [![Website](https://img.shields.io/badge/ankit404.com.np-000?style=for-the-badge&logo=safari&logoColor=white)](https://ankit404.com.np)
 [![Bluesky](https://img.shields.io/badge/@anku.bsky.social-0285FF?style=for-the-badge&logo=bluesky&logoColor=white)](https://bsky.app/profile/anku.bsky.social)

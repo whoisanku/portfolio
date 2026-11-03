@@ -76,7 +76,7 @@ const ChatWidget = () => {
           transition={{ duration: 0.18, ease: EASE }}
           inert={!open}
           role="dialog"
-          aria-label="Chat with Ankit"
+          aria-label="Chat with me"
           className="pointer-events-auto flex h-[520px] max-h-[calc(100dvh-7rem)] w-[360px] max-w-[calc(100vw-2.5rem)] origin-bottom-right flex-col overflow-hidden rounded-2xl border border-line bg-paper shadow-[0_12px_40px_rgba(0,0,0,0.28)]"
         >
           <Suspense
@@ -102,7 +102,7 @@ const ChatWidget = () => {
         onFocus={preloadPanel}
         onTouchStart={preloadPanel}
         className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent text-paper shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition-transform fine:hover:scale-105 active:scale-95"
-        aria-label={open ? "Close chat" : "Message Ankit"}
+        aria-label={open ? "Close chat" : "Message me"}
         aria-expanded={open}
       >
         <AnimatePresence mode="wait" initial={false}>

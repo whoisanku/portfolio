@@ -401,7 +401,7 @@ export default async function handler(req: Request): Promise<Response> {
       {
         title: record.title?.trim() || "Untitled",
         description:
-          excerpt(content) || "Ankit Bhandari - loves designing and software development.",
+          excerpt(content) || "I'm Ankit Bhandari, and I love designing and software development.",
         image: coverUrl(record),
         imageWidth: record.ogp?.url ? record.ogp.width : undefined,
         imageHeight: record.ogp?.url ? record.ogp.height : undefined,

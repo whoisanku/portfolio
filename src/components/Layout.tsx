@@ -585,7 +585,7 @@ const Layout = () => {
                         login dialog never overlaps it. */}
                     <DropdownShell width={208} className="">
                       <p className="px-4 py-3.5 font-mono text-[11px] leading-relaxed text-ink-3">
-                        Download Ankit's resume as a PDF from here.
+                        Download my resume as a PDF from here.
                       </p>
                     </DropdownShell>
                   </m.div>

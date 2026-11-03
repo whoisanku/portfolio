@@ -624,7 +624,7 @@ const ChatPanel = ({ open, onClose }: { open: boolean; onClose: () => void }) =>
               </div>
             ) : messages.length === 0 ? (
               <div className="flex h-full items-center justify-center text-center text-[13px] text-ink-3">
-                {convoId ? "Say hi to Anku 👋" : <Loader2 size={16} className="animate-spin" />}
+                {convoId ? "Say hi 👋" : <Loader2 size={16} className="animate-spin" />}
               </div>
             ) : (
               <div className="flex flex-col gap-2">

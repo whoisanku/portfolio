@@ -133,11 +133,11 @@ export function friendlyChatError(err: unknown): string {
     (err instanceof Error ? err.message : String(err));
   switch (name) {
     case "MessagesDisabled":
-      return "Anku has direct messages turned off right now.";
+      return "I have direct messages turned off right now.";
     case "NotFollowedBySender":
-      return "Anku isn't accepting messages from new people at the moment.";
+      return "I'm not accepting messages from new people at the moment.";
     case "RecipientNotFound":
-      return "Couldn't reach Anku's inbox. Try again later.";
+      return "Couldn't reach my inbox. Try again later.";
     case "AuthenticationRequired":
     case "InvalidToken":
     case "ExpiredToken":

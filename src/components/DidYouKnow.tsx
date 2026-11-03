@@ -16,7 +16,7 @@ const DidYouKnow = ({ placement }: { placement: "inline" | "margin" }) => (
     href={POST_URL}
     target="_blank"
     rel="noopener noreferrer"
-    aria-label="Did you know? Ankit was accepted into Anthropic's Claude for Open Source program. Read his post on Threads"
+    aria-label="Did you know? I was accepted into Anthropic's Claude for Open Source program. Read my post on Threads"
     className={`did-you-know did-you-know-${placement} pressable group flex flex-col gap-3.5 rounded-2xl border border-line bg-raise/40 p-4 hover:bg-raise`}
   >
     <div className="flex items-center justify-between">
@@ -33,7 +33,7 @@ const DidYouKnow = ({ placement }: { placement: "inline" | "margin" }) => (
     </div>
 
     <p className="font-display text-[18.5px] leading-[1.35] text-pretty text-ink">
-      Ankit was accepted into Anthropic's{" "}
+      I was accepted into Anthropic's{" "}
       <em className="italic text-accent">Claude for Open Source</em> program, which came
       with six months of Claude Max 20x.
     </p>
