@@ -569,8 +569,8 @@ body {
 .project-stack-back {
   right: 0;
   height: 76%;
-  /* Pin every back card to Porto/Sluice's aspect so their widths match;
-     cover crops LensPool's portrait shot rather than letting it render skinny. */
+  /* Pin every back card to one aspect so their widths match (the drawn
+     backs are made at it); cover crops anything that strays. */
   aspect-ratio: 1.073;
   object-fit: cover;
   z-index: 1;
