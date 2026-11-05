@@ -1,102 +1,69 @@
-import { useRef, useState, type MouseEvent } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import DidYouKnow from "../components/DidYouKnow";
 import Lightbox, { type Gallery } from "../components/Lightbox";
 import OwnerAvatar from "../components/OwnerAvatar";
+import { ProjectRow, type OpenShots } from "../components/ProjectRow";
 import ScienceAccounts from "../components/ScienceAccounts";
 import { pressMentions } from "../data/press";
 import { projects, type Project, type Shot } from "../data/projects";
 import { usePlayWhenVisible } from "../lib/usePlayWhenVisible";
 
+/** Projects shown up front; the rest wait under the fold. */
+const FEATURED_COUNT = 3;
+const featuredProjects = projects.slice(0, FEATURED_COUNT);
+const foldedProjects = projects.slice(FEATURED_COUNT);
+/** How much of the fold shows while closed: the gap between rows plus the top of the next one. */
+const FOLD_PEEK = 96;
+
 /**
- * A project's screenshots: two overlapping cards, or a placeholder. The pair
- * fades in together once both have loaded (immediately when cached), rather
- * than each card popping in on its own.
+ * The projects past the first three, folded away. The next row peeks out
+ * and dissolves into the paper; the pill in the wavy rule, or a click on the
+ * peek itself, lets the rest down.
  */
-const ProjectShots = ({
-  project,
-  eager,
-  onOpen,
-}: {
-  project: Project;
-  eager: boolean;
-  onOpen: (shots: Shot[], index: number) => void;
-}) => {
-  // Which cards have loaded (or failed — nothing more to wait for).
-  const [settled, setSettled] = useState<readonly boolean[]>([false, false]);
-  const stack = project.screenshotStack;
-  const shots = stack ? [stack.front, stack.back] : project.screenshot ? [project.screenshot] : [];
-
-  if (shots.length === 0) {
-    return (
-      <div className="project-stack" data-ready="">
-        <div className="project-stack-card project-stack-back project-stack-placeholder-card" />
-        <div className="project-stack-card project-stack-front project-stack-placeholder-card">
-          <span>{project.title.charAt(0)}</span>
-        </div>
-      </div>
-    );
-  }
-
-  const settle = (index: number) => () =>
-    setSettled((prev) => (prev[index] ? prev : prev.map((v, i) => v || i === index)));
-  // Already in the cache: ready before first paint, no fade.
-  const settleIfCached = (index: number) => (img: HTMLImageElement | null) => {
-    if (img?.complete) settle(index)();
-  };
-  const open = (index: number) => (e: MouseEvent) => {
-    // The cards sit inside the project's link; open the viewer instead.
-    e.preventDefault();
-    e.stopPropagation();
-    onOpen(shots, index);
-  };
-  const ready = shots.every((_, i) => settled[i]);
-
-  if (!stack) {
-    return (
-      <div className="project-row-screenshot project-shots" data-ready={ready ? "" : undefined}>
-        <img
-          ref={settleIfCached(0)}
-          src={shots[0].thumb}
-          alt={`${project.title} screenshot`}
-          className="project-row-screenshot-img cursor-zoom-in"
-          loading={eager ? "eager" : "lazy"}
-          decoding="async"
-          onLoad={settle(0)}
-          onError={settle(0)}
-          onClick={open(0)}
-        />
-      </div>
-    );
-  }
-
+const FoldedProjects = ({ projects, onOpen }: { projects: Project[]; onOpen: OpenShots }) => {
+  const [open, setOpen] = useState(false);
+  const reduce = useReducedMotion();
   return (
-    <div className="project-stack project-shots" data-ready={ready ? "" : undefined}>
-      <img
-        ref={settleIfCached(1)}
-        src={stack.back.thumb}
-        alt={`${project.title} second screen`}
-        className="project-stack-card project-stack-back cursor-zoom-in"
-        loading={eager ? "eager" : "lazy"}
-        decoding="async"
-        draggable={false}
-        onLoad={settle(1)}
-        onError={settle(1)}
-        onClick={open(1)}
-      />
-      <img
-        ref={settleIfCached(0)}
-        src={stack.front.thumb}
-        alt={`${project.title} main screen`}
-        className="project-stack-card project-stack-front cursor-zoom-in"
-        loading={eager ? "eager" : "lazy"}
-        decoding="async"
-        draggable={false}
-        onLoad={settle(0)}
-        onError={settle(0)}
-        onClick={open(0)}
-      />
-    </div>
+    <>
+      <m.div
+        id="folded-projects"
+        className="project-fold"
+        data-open={open || undefined}
+        initial={false}
+        animate={{ height: open ? "auto" : FOLD_PEEK }}
+        transition={reduce ? { duration: 0 } : { duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        onClick={open ? undefined : () => setOpen(true)}
+      >
+        {/* Folded rows stay out of the tab order and the accessibility tree,
+            and clicks on the peek fall through to the fold */}
+        <div className="flex flex-col pt-11" inert={!open}>
+          {projects.map((project) => (
+            <ProjectRow key={project.title} project={project} onOpen={onOpen} />
+          ))}
+        </div>
+      </m.div>
+      <button
+        type="button"
+        className="project-fold-toggle"
+        aria-expanded={open}
+        aria-controls="folded-projects"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="project-fold-wave" aria-hidden="true" />
+        <span className="project-fold-pill pressable">
+          {open ? "show less" : `show ${projects.length} more`}
+          <ChevronDown
+            size={14}
+            aria-hidden="true"
+            className={`transition-transform duration-300 ease-out ${open ? "rotate-180" : ""}`}
+          />
+        </span>
+        <span className="project-fold-wave" aria-hidden="true" />
+      </button>
+    </>
   );
 };
 
@@ -130,36 +97,12 @@ const HomePage = () => {
           {/* Wide screens: the note hangs in the gutter, level with the first row */}
           <DidYouKnow placement="margin" />
           <div className="flex flex-col">
-            {projects.map((project, idx) => (
-              <a
-                key={project.title}
-                href={project.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="project-row group"
-              >
-                {/* Left: text */}
-                <div className="project-row-text">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-display text-[22px] leading-[1.2] font-medium transition-colors duration-200 group-hover:text-accent">
-                      {project.title}
-                    </h3>
-                    <ArrowUpRight
-                      size={16}
-                      className="shrink-0 text-ink-3 opacity-0 -translate-x-1 transition duration-200 group-hover:translate-x-0 group-hover:text-accent group-hover:opacity-100"
-                    />
-                  </div>
-                  <p className="text-pretty text-[13.5px] leading-[1.55] text-ink-2">
-                    {project.description}
-                  </p>
-                </div>
-
-                {/* Right: screenshots */}
-                <ProjectShots project={project} eager={idx === 0} onOpen={openShots} />
-              </a>
+            {featuredProjects.map((project, idx) => (
+              <ProjectRow key={project.title} project={project} eager={idx === 0} onOpen={openShots} />
             ))}
           </div>
         </div>
+        {foldedProjects.length > 0 && <FoldedProjects projects={foldedProjects} onOpen={openShots} />}
         {/* Narrow screens: the note follows the project list */}
         <DidYouKnow placement="inline" />
       </section>

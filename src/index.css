@@ -692,6 +692,97 @@ body {
   }
 }
 
+/* ─── Project fold ───
+   Projects past the first three wait under a fold: the next row peeks out
+   and dissolves into the paper. A pill set in a wavy rule (the section
+   label's wave) lets them down; Motion animates the height to auto. */
+.project-fold {
+  position: relative;
+  overflow: hidden;
+}
+
+.project-fold:not([data-open]) {
+  cursor: pointer;
+}
+
+.project-fold::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent 10%, var(--bg) 92%);
+  transition: opacity 450ms ease;
+}
+
+.project-fold[data-open]::after {
+  opacity: 0;
+}
+
+/* Tucked right under the peek while closed; a row's breathing room once open */
+.project-fold-toggle {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  margin-top: 6px;
+  cursor: pointer;
+  transition: margin-top 600ms var(--ease-out);
+}
+
+.project-fold[data-open] + .project-fold-toggle {
+  margin-top: 32px;
+}
+
+.project-fold-wave {
+  flex: 1;
+  min-width: 16px;
+  height: 4px;
+  background-color: var(--line);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 4' width='8' height='4'%3E%3Cpath d='M0 2 Q2 0 4 2 T8 2' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 4' width='8' height='4'%3E%3Cpath d='M0 2 Q2 0 4 2 T8 2' fill='none' stroke='black' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-position: left center;
+  mask-position: left center;
+  -webkit-mask-size: 8px 4px;
+  mask-size: 8px 4px;
+  transition: background-color 250ms ease;
+}
+
+.project-fold-toggle:hover .project-fold-wave {
+  background-color: color-mix(in oklab, var(--accent-ink) 45%, var(--line));
+}
+
+.project-fold-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 15px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--bg-raise) 45%, transparent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.project-fold-toggle:hover .project-fold-pill {
+  background: var(--bg-raise);
+  color: var(--ink);
+}
+
+.project-fold-toggle:focus-visible {
+  outline: none;
+}
+
+.project-fold-toggle:focus-visible .project-fold-pill {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+
 /* ─── Did you know? (Threads margin note) ───
    Not a section. Two copies, one shown: below the project list on narrow
    screens, and in the right gutter level with the first project row once
@@ -1380,6 +1471,12 @@ body {
   .project-stack-back:hover,
   .project-stack-front:hover {
     transform: none;
+  }
+
+  /* The fold opens in place (its height jump is Motion's, via useReducedMotion) */
+  .project-fold::after,
+  .project-fold-toggle {
+    transition: none;
   }
 
   /* Skeletons hold still */
